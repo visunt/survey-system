@@ -2,14 +2,18 @@
   <view class="result">
     <view class="result-card">
       <text class="icon">✓</text>
-      <text class="title">感谢您的参与！</text>
-      <text class="desc">您的答案已成功提交</text>
-      <button class="btn" @tap="close">关闭</button>
+      <text class="title">{{ $t('submit.success') }}</text>
+      <text class="desc">{{ $t('submit.successDesc') }}</text>
+      <button class="btn" @tap="close">{{ $t('submit.close') }}</button>
     </view>
   </view>
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n';
+
+const { t } = useI18n();
+
 function close() {
   // Try to go back or close
   const pages = getCurrentPages();
@@ -24,6 +28,8 @@ function close() {
 </script>
 
 <style lang="scss" scoped>
+@import '@/styles/main.scss';
+
 .result {
   min-height: 100vh;
   background: linear-gradient(135deg, #67c23a 0%, #85ce61 100%);

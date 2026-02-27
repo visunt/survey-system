@@ -1,13 +1,15 @@
-import express, { Application, Request, Response, NextFunction } from 'express';
+import express, { Application } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
+import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 
 import authRoutes from './routes/auth';
 import surveyRoutes from './routes/survey';
 import responseRoutes from './routes/response';
 import { errorHandler } from './middleware/errorHandler';
+import { i18nMiddleware } from './middleware/i18n';
 
 dotenv.config();
 
@@ -17,9 +19,11 @@ const PORT = process.env.PORT || 3001;
 // Middleware
 app.use(helmet());
 app.use(cors({ origin: process.env.CORS_ORIGIN || '*' }));
+app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan('dev'));
+app.use(i18nMiddleware);
 
 // Health check
 app.get('/health', (req: Request, res: Response) => {

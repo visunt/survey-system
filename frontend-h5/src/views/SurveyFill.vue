@@ -1,133 +1,158 @@
 <template>
   <div class="survey-fill">
-    <div class="header">
-      <h1>{{ survey.title }}</h1>
-      <p v-if="survey.description">{{ survey.description }}</p>
+    <div v-if="!survey.title" class="loading">
+      {{ $t('survey.loading') }}
     </div>
 
-    <el-form
-      ref="formRef"
-      :model="form"
-      :rules="rules"
-      label-position="top"
-      class="form"
-    >
-      <div v-for="question in sortedQuestions" :key="question.id" class="question-item">
-        <div class="question-title">
-          {{ question.order + 1 }}. {{ question.title }}
-          <span v-if="question.required" class="required">*</span>
-        </div>
-        <div v-if="question.description" class="question-desc">
-          {{ question.description }}
-        </div>
-
-        <!-- Single choice -->
-        <el-radio-group
-          v-if="question.type === 'single'"
-          v-model="form[`q${question.id}`]"
-          class="question-input"
-        >
-          <el-radio v-for="opt in question.options" :key="opt" :label="opt">
-            {{ opt }}
-          </el-radio>
-        </el-radio-group>
-
-        <!-- Multiple choice -->
-        <el-checkbox-group
-          v-else-if="question.type === 'multiple'"
-          v-model="form[`q${question.id}`]"
-          class="question-input"
-        >
-          <el-checkbox v-for="opt in question.options" :key="opt" :label="opt">
-            {{ opt }}
-          </el-checkbox>
-        </el-checkbox-group>
-
-        <!-- Text input -->
-        <el-input
-          v-else-if="question.type === 'text'"
-          v-model="form[`q${question.id}`]"
-          type="textarea"
-          :rows="4"
-          class="question-input"
-        />
-
-        <!-- Rating -->
-        <el-rate
-          v-else-if="question.type === 'rating'"
-          v-model="form[`q${question.id}`]"
-          :max="question.max || 5"
-          class="question-input"
-        />
+    <template v-else>
+      <div class="header">
+        <h1>{{ survey.title }}</h1>
+        <p v-if="survey.description">{{ survey.description }}</p>
       </div>
-    </el-form>
 
-    <div class="footer">
-      <el-button type="primary" size="large" :loading="submitting" @click="submit">
-        Submit
-      </el-button>
-    </div>
+      <form @submit.prevent="submit" class="form">
+        <div v-for="question in sortedQuestions" :key="question.id" class="question-item">
+          <div class="question-title">
+            {{ question.order + 1 }}. {{ question.title }}
+            <span v-if="question.required" class="required">* {{ $t('question.required') }}</span>
+          </div>
+          <div v-if="question.description" class="question-desc">
+            {{ question.description }}
+          </div>
 
-    <el-dialog v-model="showConfirm" title="Confirm" width="80%">
-      <p>Are you sure to submit your answers?</p>
-      <template #footer>
-        <el-button @click="showConfirm = false">Cancel</el-button>
-        <el-button type="primary" @click="confirmSubmit">Confirm</el-button>
-      </template>
-    </el-dialog>
+          <!-- Single choice -->
+          <div v-if="question.type === 'single'" class="options">
+            <label v-for="opt in question.options" :key="opt" class="option-label">
+              <input
+                type="radio"
+                :name="`q${question.id}`"
+                v-model="form[`q${question.id}`]"
+                :value="opt"
+              />
+              <span>{{ opt }}</span>
+            </label>
+          </div>
+
+          <!-- Multiple choice -->
+          <div v-else-if="question.type === 'multiple'" class="options">
+            <label v-for="opt in question.options" :key="opt" class="option-label">
+              <input
+                type="checkbox"
+                v-model="form[`q${question.id}`]"
+                :value="opt"
+              />
+              <span>{{ opt }}</span>
+            </label>
+          </div>
+
+          <!-- Text input -->
+          <textarea
+            v-else-if="question.type === 'text'"
+            v-model="form[`q${question.id}`]"
+            class="text-input"
+            :placeholder="$t('common.loading')"
+          ></textarea>
+
+          <!-- Rating -->
+          <div v-else-if="question.type === 'rating'" class="rating">
+            <span
+              v-for="i in (question.max || 5)"
+              :key="i"
+              class="star"
+              :class="{ active: (form[`q${question.id}`] || 0) >= i }"
+              @click="setRating(question.id, i)"
+            >
+              ★
+            </span>
+          </div>
+          <div v-if="errors[`q${question.id}`]" class="error">{{ errors[`q${question.id}`] }}</div>
+        </div>
+      </form>
+
+      <div class="footer">
+        <button class="submit-btn" :disabled="submitting" @click="submit">
+          {{ submitting ? $t('submit.submitting') : $t('submit.btn') }}
+        </button>
+      </div>
+
+      <div v-if="showConfirm" class="modal-overlay" @click="showConfirm = false">
+        <div class="modal" @click.stop>
+          <h3>{{ $t('submit.confirmTitle') }}</h3>
+          <p>{{ $t('submit.confirm') }}</p>
+          <div class="modal-actions">
+            <button @click="showConfirm = false">{{ $t('submit.cancel') }}</button>
+            <button class="primary" @click="confirmSubmit">{{ $t('submit.btn') }}</button>
+          </div>
+        </div>
+      </div>
+    </template>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { ElMessage } from 'element-plus';
 import { surveyApi, responseApi, type Survey, type Question } from '@/api/survey';
+import { useI18n } from 'vue-i18n';
 
 const route = useRoute();
 const router = useRouter();
+const { t } = useI18n();
 
 const survey = ref<Partial<Survey>>({});
-const formRef = ref();
+const form = reactive<Record<string, any>>({});
+const errors = reactive<Record<string, string>>({});
 const submitting = ref(false);
 const showConfirm = ref(false);
-
-const form = reactive<Record<string, any>>({});
-const rules = reactive<Record<string, any>>({});
 
 const sortedQuestions = computed(() => {
   if (!survey.value.questions) return [];
   return [...survey.value.questions].sort((a, b) => a.order - b.order);
 });
 
-async function loadSurvey() {
+onMounted(() => {
   const id = route.params.id as string;
+  if (id) {
+    loadSurvey(Number(id));
+  }
+});
+
+async function loadSurvey(id: number) {
   try {
-    const res = await surveyApi.get(Number(id));
+    const res = await surveyApi.get(id);
     survey.value = res;
 
-    // Initialize form and rules
-    res.questions.forEach((q: Question) => {
+    // Initialize form
+    res.questions?.forEach((q: Question) => {
       const key = `q${q.id}`;
-      if (q.required) {
-        rules[key] = [
-          { required: true, message: 'This field is required', trigger: 'change' },
-        ];
-      }
       if (q.type === 'multiple') {
         form[key] = [];
       }
     });
   } catch (error) {
-    ElMessage.error('Survey not found');
+    alert(t('survey.notFound'));
   }
 }
 
+function setRating(questionId: number, value: number) {
+  form[`q${questionId}`] = value;
+}
+
 function submit() {
-  formRef.value?.validate((valid: boolean) => {
-    if (!valid) return;
-    showConfirm.value = true;
+  // Validate required fields
+  let hasError = false;
+  survey.value.questions?.forEach((q: Question) => {
+    const key = `q${q.id}`;
+    if (q.required && !form[key]) {
+      errors[key] = t('question.requiredTip');
+      hasError = true;
+    } else {
+      delete errors[key];
+    }
   });
+
+  if (hasError) return;
+  showConfirm.value = true;
 }
 
 async function confirmSubmit() {
@@ -141,18 +166,14 @@ async function confirmSubmit() {
 
   try {
     await responseApi.submit(survey.value.id!, answers);
-    ElMessage.success('Thank you for your response!');
+    alert(`${t('submit.success')}\n${t('submit.successDesc')}`);
     router.push(`/survey/${survey.value.id}/result`);
   } catch (error) {
-    ElMessage.error('Submission failed');
+    alert(t('submit.failed'));
   } finally {
     submitting.value = false;
   }
 }
-
-onMounted(() => {
-  loadSurvey();
-});
 </script>
 
 <style lang="scss" scoped>
@@ -160,6 +181,15 @@ onMounted(() => {
   min-height: 100vh;
   background: #f5f5f5;
   padding-bottom: 80px;
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  font-size: 16px;
+  color: #999;
 }
 
 .header {
@@ -208,8 +238,60 @@ onMounted(() => {
   margin-bottom: 12px;
 }
 
-.question-input {
+.options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.option-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  cursor: pointer;
+
+  input {
+    cursor: pointer;
+  }
+}
+
+.text-input {
   width: 100%;
+  min-height: 120px;
+  padding: 12px;
+  border: 1px solid #e4e7ed;
+  border-radius: 8px;
+  font-size: 15px;
+  font-family: inherit;
+  resize: vertical;
+
+  &:focus {
+    outline: none;
+    border-color: #667eea;
+  }
+}
+
+.rating {
+  display: flex;
+  gap: 8px;
+
+  .star {
+    font-size: 36px;
+    color: #e4e7ed;
+    cursor: pointer;
+    user-select: none;
+
+    &.active {
+      color: #f7ba2a;
+    }
+  }
+}
+
+.error {
+  color: #f56c6c;
+  font-size: 13px;
+  margin-top: 8px;
 }
 
 .footer {
@@ -221,9 +303,72 @@ onMounted(() => {
   padding: 12px 20px;
   box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
   text-align: center;
+}
 
-  .el-button {
-    width: 200px;
+.submit-btn {
+  width: 200px;
+  height: 44px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+  font-size: 16px;
+  border: none;
+  border-radius: 22px;
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal {
+  background: #fff;
+  border-radius: 12px;
+  padding: 24px;
+  width: 90%;
+  max-width: 400px;
+
+  h3 {
+    margin: 0 0 12px;
+    font-size: 18px;
+  }
+
+  p {
+    margin: 0 0 24px;
+    color: #666;
+  }
+}
+
+.modal-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+
+  button {
+    padding: 8px 24px;
+    border: 1px solid #e4e7ed;
+    background: #fff;
+    border-radius: 6px;
+    cursor: pointer;
+
+    &.primary {
+      background: #667eea;
+      color: #fff;
+      border-color: #667eea;
+    }
   }
 }
 </style>

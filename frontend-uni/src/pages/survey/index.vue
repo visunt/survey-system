@@ -1,80 +1,89 @@
 <template>
   <view class="survey-fill">
-    <view class="header">
-      <text class="title">{{ survey.title }}</text>
-      <text v-if="survey.description" class="desc">{{ survey.description }}</text>
+    <view v-if="!survey.title" class="loading">
+      {{ $t('survey.loading') }}
     </view>
 
-    <view class="questions">
-      <view v-for="(question, idx) in sortedQuestions" :key="question.id" class="question-item">
-        <view class="question-title">
-          <text>{{ idx + 1 }}. {{ question.title }}</text>
-          <text v-if="question.required" class="required">*</text>
-        </view>
-        <view v-if="question.description" class="question-desc">
-          {{ question.description }}
-        </view>
+    <template v-else>
+      <view class="header">
+        <text class="title">{{ survey.title }}</text>
+        <text v-if="survey.description" class="desc">{{ survey.description }}</text>
+      </view>
 
-        <!-- Single choice -->
-        <radio-group v-if="question.type === 'single'" @change="(e) => onRadioChange(question.id, e)">
-          <view v-for="opt in question.options" :key="opt" class="option-item">
-            <radio :value="opt" :checked="form[`q${question.id}`] === opt" />
-            <text>{{ opt }}</text>
+      <view class="questions">
+        <view v-for="(question, idx) in sortedQuestions" :key="question.id" class="question-item">
+          <view class="question-title">
+            <text>{{ idx + 1 }}. {{ question.title }}</text>
+            <text v-if="question.required" class="required">* {{ $t('question.required') }}</text>
           </view>
-        </radio-group>
-
-        <!-- Multiple choice -->
-        <checkbox-group v-else-if="question.type === 'multiple'" @change="(e) => onCheckboxChange(question.id, e)">
-          <view v-for="opt in question.options" :key="opt" class="option-item">
-            <checkbox :value="opt" :checked="isOptionSelected(question.id, opt)" />
-            <text>{{ opt }}</text>
+          <view v-if="question.description" class="question-desc">
+            <text>{{ question.description }}</text>
           </view>
-        </checkbox-group>
 
-        <!-- Text input -->
-        <textarea
-          v-else-if="question.type === 'text'"
-          v-model="form[`q${question.id}`]"
-          class="text-input"
-          placeholder="请输入"
-        />
+          <!-- Single choice -->
+          <radio-group v-if="question.type === 'single'" @change="(e) => onRadioChange(question.id, e)">
+            <view v-for="opt in question.options" :key="opt" class="option-item">
+              <radio :value="opt" :checked="form[`q${question.id}`] === opt" />
+              <text>{{ opt }}</text>
+            </view>
+          </radio-group>
 
-        <!-- Rating -->
-        <view v-else-if="question.type === 'rating'" class="rating">
-          <view
-            v-for="i in (question.max || 5)"
-            :key="i"
-            class="star"
-            :class="{ active: (form[`q${question.id}`] || 0) >= i }"
-            @tap="setRating(question.id, i)"
-          >
-            ★
+          <!-- Multiple choice -->
+          <checkbox-group v-else-if="question.type === 'multiple'" @change="(e) => onCheckboxChange(question.id, e)">
+            <view v-for="opt in question.options" :key="opt" class="option-item">
+              <checkbox :value="opt" :checked="isOptionSelected(question.id, opt)" />
+              <text>{{ opt }}</text>
+            </view>
+          </checkbox-group>
+
+          <!-- Text input -->
+          <textarea
+            v-else-if="question.type === 'text'"
+            v-model="form[`q${question.id}`]"
+            class="text-input"
+            :placeholder="$t('common.loading')"
+          />
+
+          <!-- Rating -->
+          <view v-else-if="question.type === 'rating'" class="rating">
+            <view
+              v-for="i in (question.max || 5)"
+              :key="i"
+              class="star"
+              :class="{ active: (form[`q${question.id}`] || 0) >= i }"
+              @tap="setRating(question.id, i)"
+            >
+              <text>★</text>
+            </view>
           </view>
         </view>
       </view>
-    </view>
 
-    <view class="footer">
-      <button class="submit-btn" :disabled="submitting" @tap="submit">
-        {{ submitting ? '提交中...' : '提交' }}
-      </button>
-    </view>
+      <view class="footer">
+        <button class="submit-btn" :disabled="submitting" @tap="submit">
+          {{ submitting ? $t('submit.submitting') : $t('submit.btn') }}
+        </button>
+      </view>
 
-    <uni-popup ref="confirmPopup" type="dialog">
-      <uni-popup-dialog
-        title="确认"
-        content="确认提交您的答案吗？"
-        @confirm="confirmSubmit"
-        @close="confirmPopup?.close()"
-      />
-    </uni-popup>
+      <uni-popup ref="confirmPopup" type="dialog">
+        <uni-popup-dialog
+          :title="$t('submit.confirmTitle')"
+          :content="$t('submit.confirm')"
+          @confirm="confirmSubmit"
+          @close="confirmPopup?.close()"
+        />
+      </uni-popup>
+    </template>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue';
+import { ref, reactive, computed } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
 import { surveyApi, responseApi, type Survey, type Question } from '@/api/survey';
+import { useI18n } from 'vue-i18n';
+
+const { t } = useI18n();
 
 const confirmPopup = ref();
 
@@ -97,9 +106,17 @@ async function loadSurvey(id: number) {
   try {
     const res = await surveyApi.get(id);
     survey.value = res;
+
+    // Initialize form
+    res.questions?.forEach((q: Question) => {
+      const key = `q${q.id}`;
+      if (q.type === 'multiple') {
+        form[key] = [];
+      }
+    });
   } catch (error) {
     uni.showToast({
-      title: '问卷不存在',
+      title: t('survey.notFound'),
       icon: 'none',
     });
   }
@@ -125,12 +142,13 @@ function submit() {
   // Validate required fields
   let hasError = false;
   survey.value.questions?.forEach((q: Question) => {
-    if (q.required && !form[`q${q.id}`]) {
-      hasError = true;
+    const key = `q${q.id}`;
+    if (q.required && !form[key]) {
       uni.showToast({
-        title: '请填写所有必填项',
+        title: t('question.requiredTip'),
         icon: 'none',
       });
+      hasError = true;
     }
   });
 
@@ -148,12 +166,19 @@ async function confirmSubmit() {
 
   try {
     await responseApi.submit(survey.value.id!, answers);
-    uni.redirectTo({
-      url: '/pages/result/index',
+    uni.showToast({
+      title: `${t('submit.success')}\n${t('submit.successDesc')}`,
+      icon: 'success',
+      duration: 3000,
     });
+    setTimeout(() => {
+      uni.redirectTo({
+        url: '/pages/result/index',
+      });
+    }, 1500);
   } catch (error) {
     uni.showToast({
-      title: '提交失败',
+      title: t('submit.failed'),
       icon: 'none',
     });
   } finally {
@@ -163,23 +188,34 @@ async function confirmSubmit() {
 </script>
 
 <style lang="scss" scoped>
+@import '@/styles/main.scss';
+
 .survey-fill {
   min-height: 100vh;
   background: #f5f5f5;
-  padding-bottom: 120rpx;
+  padding-bottom: 160rpx;
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  font-size: 32rpx;
+  color: #999;
 }
 
 .header {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: #fff;
-  padding: 60rpx 40rpx;
+  padding: 120rpx 40rpx;
   text-align: center;
 
   .title {
     display: block;
-    font-size: 36rpx;
+    font-size: 48rpx;
     font-weight: bold;
-    margin-bottom: 16rpx;
+    margin-bottom: 20rpx;
   }
 
   .desc {
@@ -190,14 +226,14 @@ async function confirmSubmit() {
 }
 
 .questions {
-  padding: 30rpx;
+  padding: 40rpx;
 }
 
 .question-item {
   background: #fff;
   border-radius: 16rpx;
-  padding: 30rpx;
-  margin-bottom: 24rpx;
+  padding: 40rpx;
+  margin-bottom: 32rpx;
 }
 
 .question-title {
@@ -221,8 +257,9 @@ async function confirmSubmit() {
 .option-item {
   display: flex;
   align-items: center;
-  padding: 16rpx 0;
+  gap: 16rpx;
   font-size: 30rpx;
+  padding: 16rpx 0;
 
   radio, checkbox {
     margin-right: 16rpx;
@@ -231,10 +268,10 @@ async function confirmSubmit() {
 
 .text-input {
   width: 100%;
-  min-height: 200rpx;
-  padding: 20rpx;
+  min-height: 240rpx;
+  padding: 24rpx;
   border: 1rpx solid #e4e7ed;
-  border-radius: 8rpx;
+  border-radius: 16rpx;
   font-size: 30rpx;
   box-sizing: border-box;
 }
@@ -244,7 +281,7 @@ async function confirmSubmit() {
   gap: 16rpx;
 
   .star {
-    font-size: 60rpx;
+    font-size: 72rpx;
     color: #e4e7ed;
 
     &.active {
@@ -259,7 +296,7 @@ async function confirmSubmit() {
   left: 0;
   right: 0;
   background: #fff;
-  padding: 20rpx 40rpx;
+  padding: 24rpx 40rpx;
   box-shadow: 0 -4rpx 20rpx rgba(0, 0, 0, 0.1);
 }
 
@@ -269,8 +306,8 @@ async function confirmSubmit() {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: #fff;
   font-size: 32rpx;
-  border-radius: 44rpx;
   border: none;
+  border-radius: 44rpx;
 
   &[disabled] {
     opacity: 0.6;
