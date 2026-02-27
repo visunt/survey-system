@@ -24,10 +24,9 @@ app.use(i18n);
 app.use(ElementPlus, { locale: zhCn });
 
 // Sync Element Plus locale with app locale
-import { useI18n } from 'vue-i18n';
-const { locale } = useI18n();
-
 import { watch } from 'vue';
+const { locale } = i18n.global.locale;
+
 watch(locale, (newLocale) => {
   if (newLocale === 'zh') {
     app.config.globalProperties.$ELEMENT_PLUS.locale = zhCn;
