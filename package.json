@@ -1,0 +1,27 @@
+{
+  "name": "survey-system",
+  "version": "1.0.0",
+  "description": "Full-stack survey system",
+  "scripts": {
+    "install:all": "npm install && npm run install:backend && npm run install:admin && npm run install:h5 && npm run install:uni",
+    "install:backend": "cd backend && npm install",
+    "install:admin": "cd frontend-admin && npm install",
+    "install:h5": "cd frontend-h5 && npm install",
+    "install:uni": "cd frontend-uni && npm install",
+    "dev": "node .claude/skills/dev.mjs",
+    "build": "node .claude/skills/build.mjs",
+    "test": "node .claude/skills/test.mjs",
+    "clean": "node .claude/skills/clean.mjs",
+    "gen:model": "node .claude/skills/gen-model.mjs",
+    "gen-api": "node .claude/skills/gen-api.mjs",
+    "gen-component": "node .claude/skills/gen-component.mjs",
+    "gen-page": "node .claude/skills/gen-page.mjs",
+    "deploy:docker": "node .claude/skills/deploy-docker.mjs",
+    "deploy:db": "node .claude/skills/deploy-db.mjs",
+    "deploy:backup": "node .claude/skills/deploy-backup.mjs",
+    "doc": "node .claude/skills/doc.mjs"
+  },
+  "keywords": ["survey", "vue3", "nodejs", "uniapp"],
+  "author": "",
+  "license": "MIT"
+}

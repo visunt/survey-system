@@ -1,0 +1,40 @@
+{
+  "pages": [
+    {
+      "path": "pages/survey/index",
+      "style": {
+        "navigationBarTitleText": "问卷",
+        "navigationBarBackgroundColor": "#667eea",
+        "navigationBarTextStyle": "white"
+      }
+    },
+    {
+      "path": "pages/result/index",
+      "style": {
+        "navigationBarTitleText": "提交成功",
+        "navigationBarBackgroundColor": "#67c23a",
+        "navigationBarTextStyle": "white"
+      }
+    },
+    {
+      "path": "pages/notfound/index",
+      "style": {
+        "navigationBarTitleText": "404",
+        "navigationBarBackgroundColor": "#f5f5f5",
+        "navigationBarTextStyle": "black"
+      }
+    }
+  ],
+  "globalStyle": {
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "问卷系统",
+    "navigationBarBackgroundColor": "#ffffff",
+    "backgroundColor": "#F8F8F8"
+  },
+  "easycom": {
+    "autoscan": true,
+    "custom": {
+      "^el-(.*)": "element-plus/es/components/el-$1/index.vue"
+    }
+  }
+}

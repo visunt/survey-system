@@ -1,0 +1,102 @@
+// Survey System Database Schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// User model for admin authentication
+model User {
+  id        Int      @id @default(autoincrement())
+  username  String   @unique
+  password  String
+  role      String   @default("user") // "admin" or "user"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Survey model
+model Survey {
+  id          Int         @id @default(autoincrement())
+  title       String
+  description String?
+  status      String     @default("draft") // "draft", "published", "closed"
+  userId      Int
+  user        User       @relation(fields: [userId], references: [id])
+  questions   Question[]
+  responses   Response[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@index([userId])
+  @@index([status])
+}
+
+// Question model
+model Question {
+  id              Int             @id @default(autoincrement())
+  surveyId        Int
+  survey          Survey          @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+  type            String          // "single", "multiple", "text", "rating"
+  title           String
+  description     String?
+  required        Boolean         @default(false)
+  options         Json?           // Array of strings for single/multiple choice
+  minRating       Int?            // Minimum rating value
+  maxRating       Int?            // Maximum rating value
+  order           Int
+  questionOptions QuestionOption[]
+  answers         Answer[]
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([surveyId])
+  @@index([order])
+}
+
+// QuestionOption model (for better data integrity)
+model QuestionOption {
+  id         Int      @id @default(autoincrement())
+  questionId Int
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  option     String
+  order      Int
+  answers    Answer[]
+  createdAt  DateTime @default(now())
+
+  @@index([questionId])
+}
+
+// Response model
+model Response {
+  id         Int      @id @default(autoincrement())
+  surveyId   Int
+  survey     Survey   @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+  submittedAt DateTime @default(now())
+  answers    Answer[]
+  createdAt  DateTime @default(now())
+
+  @@index([surveyId])
+  @@index([submittedAt])
+}
+
+// Answer model
+model Answer {
+  id              Int            @id @default(autoincrement())
+  responseId      Int
+  response        Response       @relation(fields: [responseId], references: [id], onDelete: Cascade)
+  questionId      Int
+  question        Question       @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  questionOptionId Int?
+  questionOption  QuestionOption? @relation(fields: [questionOptionId], references: [id], onDelete: SetNull)
+  value           Json           // String, array of strings, or number
+  createdAt       DateTime       @default(now())
+
+  @@index([responseId])
+  @@index([questionId])
+  @@index([questionOptionId])
+}
