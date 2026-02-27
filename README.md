@@ -11,6 +11,7 @@ A full-stack survey system supporting PC admin panel, H5 web form, and uni-app m
 - **Data Statistics**: Visual statistics and charts
 - **Data Export**: Export responses to CSV
 - **Authentication**: Basic role-based access control (Admin/User)
+- **Internationalization**: Support for Chinese and English (简体中文/English), default Chinese
 
 ## Tech Stack
 
@@ -152,6 +153,8 @@ Available CLI commands (skills):
 - `gen-api <name>` - Generate API endpoint files (controller, service, routes)
 - `gen-component <name> [--admin|--h5|--uni]` - Generate Vue component
 - `gen-page <name> [--admin|--h5|--uni]` - Generate Vue page
+- `gen:locale <key> <zh-value> <en-value>` - Add translation key to all locales
+- `sync:locale` - Synchronize translation keys across all locales
 
 ### Deployment
 - `deploy:docker` - Deploy using Docker
