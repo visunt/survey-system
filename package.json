@@ -21,7 +21,12 @@
     "deploy:backup": "node .claude/skills/deploy-backup.mjs",
     "doc": "node .claude/skills/doc.mjs"
   },
-  "keywords": ["survey", "vue3", "nodejs", "uniapp"],
+  "keywords": [
+    "survey",
+    "vue3",
+    "nodejs",
+    "uniapp"
+  ],
   "author": "",
   "license": "MIT"
 }
