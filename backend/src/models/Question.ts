@@ -1,0 +1,76 @@
+import { DataTypes, Model, Association } from 'sequelize';
+import sequelize from '../config/database';
+import { QuestionAttributes, SkipLogic } from '../types';
+import Survey from './Survey';
+import QuestionOption from './QuestionOption';
+
+class Question extends Model<QuestionAttributes> implements QuestionAttributes {
+  public id!: number;
+  public surveyId!: number;
+  public title!: string;
+  public type!: 'single_choice' | 'multiple_choice' | 'text' | 'textarea' | 'rating' | 'date' | 'dropdown_single' | 'dropdown_multiple' | 'switch';
+  public isRequired!: boolean;
+  public orderIndex!: number;
+  public skipLogic?: SkipLogic;
+  public options?: QuestionOptionAttributes[];
+  public readonly createdAt!: Date;
+  public readonly updatedAt!: Date;
+
+  public static associations: {
+    survey: Association<Question, Survey>;
+    options: Association<Question, QuestionOption>;
+  };
+}
+
+Question.init(
+  {
+    id: {
+      type: DataTypes.INTEGER,
+      primaryKey: true,
+      autoIncrement: true,
+    },
+    surveyId: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      references: {
+        model: 'surveys',
+        key: 'id',
+      },
+    },
+    title: {
+      type: DataTypes.STRING(500),
+      allowNull: false,
+    },
+    type: {
+      type: DataTypes.ENUM('single_choice', 'multiple_choice', 'text', 'textarea', 'rating', 'date', 'dropdown_single', 'dropdown_multiple', 'switch'),
+      allowNull: false,
+    },
+    isRequired: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: true,
+      allowNull: false,
+    },
+    orderIndex: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+    },
+    skipLogic: {
+      type: DataTypes.JSON,
+      allowNull: true,
+      get() {
+        const value = this.getDataValue('skipLogic');
+        return value ? (typeof value === 'string' ? JSON.parse(value) : value) : null;
+      },
+      set(value: SkipLogic | null) {
+        this.setDataValue('skipLogic', value ? JSON.stringify(value) : null);
+      },
+    },
+  },
+  {
+    sequelize,
+    tableName: 'questions',
+    timestamps: true,
+  }
+);
+
+export default Question;
