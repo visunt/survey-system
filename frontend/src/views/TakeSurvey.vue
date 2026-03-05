@@ -291,7 +291,10 @@ const loadSurvey = async () => {
 
     if (survey.value.requireLogin && !authStore.isAuthenticated) {
       ElMessage.warning('该问卷需要登录后填写');
-      router.push('/login');
+      router.push({
+        path: '/login',
+        query: { redirect: route.fullPath },
+      });
     }
   } catch (error) {
     console.error('Failed to load survey:', error);
