@@ -1,0 +1,27 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#667eea"/>
+      <stop offset="100%" stop-color="#764ba2"/>
+    </linearGradient>
+    <linearGradient id="shine" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="white" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="white" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="512" height="512" rx="96" fill="url(#bg)"/>
+  
+  <!-- Shine -->
+  <rect width="512" height="256" rx="96" fill="url(#shine)"/>
+  
+  <!-- V Letter -->
+  <path d="M60 140 L120 140 L170 300 L220 140 L280 140 L200 370 L140 370 Z" fill="white"/>
+  
+  <!-- M Letter -->
+  <path d="M240 140 L300 140 L300 370 L260 370 L260 210 L230 270 L200 210 L200 370 L160 370 L160 140 L220 140 L230 190 Z" fill="white"/>
+  
+  <!-- U Letter -->
+  <path d="M320 140 L380 140 L380 290 C380 340 350 370 300 370 C250 370 220 340 220 290 L220 140 L280 140 L280 290 C280 305 288 315 300 315 C312 315 320 305 320 290 Z" fill="white"/>
+</svg>
