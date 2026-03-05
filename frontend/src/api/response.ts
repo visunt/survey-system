@@ -6,12 +6,12 @@ export interface Answer {
 }
 
 export const responseAPI = {
-  submitResponse: (surveyId: number, answers: Answer[], deviceId?: string) =>
+  submitResponse: (surveyId: string, answers: Answer[], deviceId?: string) =>
     api.post(`/surveys/${surveyId}/responses`, { answers, deviceId }),
 
-  getSurveyResponses: (surveyId: number) =>
+  getSurveyResponses: (surveyId: string) =>
     api.get(`/surveys/${surveyId}/responses`),
 
-  getSurveyStatistics: (surveyId: number) =>
+  getSurveyStatistics: (surveyId: string) =>
     api.get(`/surveys/${surveyId}/statistics`),
 };

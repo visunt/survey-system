@@ -41,17 +41,34 @@ const handleLogout = () => {
 };
 </script>
 
-<style scoped>
+<style>
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  min-height: 100vh;
+}
+
 #app {
   min-height: 100vh;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
 }
+</style>
+
+<style scoped>
 
 .header {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
   padding: 0 20px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  height: 60px !important;
 }
 
 .header-content {
@@ -70,13 +87,14 @@ const handleLogout = () => {
 }
 
 .logo-image {
-  height: 40px;
+  height: 36px;
   width: auto;
 }
 
 .logo-text {
-  font-size: 24px;
+  font-size: 20px;
   margin: 0;
+  white-space: nowrap;
 }
 
 .nav {
@@ -89,6 +107,7 @@ const handleLogout = () => {
   text-decoration: none;
   font-weight: 500;
   transition: opacity 0.3s;
+  white-space: nowrap;
 }
 
 .nav a:hover,
@@ -103,9 +122,59 @@ const handleLogout = () => {
   gap: 10px;
 }
 
+.user-menu span {
+  white-space: nowrap;
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .main-content {
   padding: 20px;
   background: #f5f7fa;
   min-height: calc(100vh - 60px);
+}
+
+@media (max-width: 768px) {
+  .header-content {
+    gap: 8px;
+  }
+
+  .logo-text {
+    display: none;
+  }
+
+  .nav {
+    gap: 12px;
+    font-size: 14px;
+  }
+
+  .nav a {
+    font-size: 14px;
+  }
+
+  .user-menu span {
+    display: none;
+  }
+
+  .user-menu .el-button {
+    padding: 8px 12px;
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  .nav {
+    gap: 8px;
+  }
+
+  .nav a {
+    font-size: 12px;
+  }
+
+  .user-menu .el-button {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
 }
 </style>

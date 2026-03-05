@@ -285,7 +285,7 @@ const handleSubmit = async () => {
 
 const loadSurvey = async () => {
   try {
-    const id = Number(route.params.id);
+    const id = route.params.id as string;
     const response = await surveyAPI.getSurveyById(id);
     survey.value = response.data;
 

@@ -49,15 +49,15 @@ export const surveyAPI = {
   getSurveys: (params?: { status?: string; creatorId?: number }) =>
     api.get('/surveys', { params }),
 
-  getSurveyById: (id: number) => api.get(`/surveys/${id}`),
+  getSurveyById: (id: string) => api.get(`/surveys/${id}`),
 
   createSurvey: (data: Survey) => api.post('/surveys', data),
 
-  updateSurvey: (id: number, data: Survey) => api.put(`/surveys/${id}`, data),
+  updateSurvey: (id: string, data: Survey) => api.put(`/surveys/${id}`, data),
 
-  deleteSurvey: (id: number) => api.delete(`/surveys/${id}`),
+  deleteSurvey: (id: string) => api.delete(`/surveys/${id}`),
 
-  publishSurvey: (id: number) => api.patch(`/surveys/${id}/publish`),
+  publishSurvey: (id: string) => api.patch(`/surveys/${id}/publish`),
 };
 
 export default surveyAPI;

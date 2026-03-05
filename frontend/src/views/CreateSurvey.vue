@@ -297,7 +297,7 @@ const saveDraft = async () => {
   try {
     saving.value = true;
     if (isEdit.value) {
-      const id = Number(route.params.id);
+      const id = route.params.id as string;
       await surveyAPI.updateSurvey(id, { ...survey, status: 'draft' } as Survey);
       ElMessage.success('保存成功');
     } else {
@@ -345,10 +345,10 @@ const publishSurvey = async () => {
 
   try {
     publishing.value = true;
-    let surveyId: number;
+    let surveyId: string;
 
     if (isEdit.value) {
-      const id = Number(route.params.id);
+      const id = route.params.id as string;
       await surveyAPI.updateSurvey(id, { ...survey, status: 'published' } as Survey);
       surveyId = id;
     } else {
@@ -369,7 +369,7 @@ const loadSurvey = async () => {
   if (route.name === 'EditSurvey') {
     isEdit.value = true;
     try {
-      const id = Number(route.params.id);
+      const id = route.params.id as string;
       const response = await surveyAPI.getSurveyById(id);
       const data = response.data;
 

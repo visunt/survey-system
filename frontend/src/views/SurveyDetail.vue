@@ -133,7 +133,7 @@ const takeSurvey = () => {
 
 const loadSurvey = async () => {
   try {
-    const id = Number(route.params.id);
+    const id = route.params.id as string;
     const response = await surveyAPI.getSurveyById(id);
     survey.value = response.data;
   } catch (error) {
@@ -169,6 +169,7 @@ onMounted(() => {
 
 .survey-content {
   max-width: 800px;
+  margin: 0 auto;
 }
 
 .survey-info-card {

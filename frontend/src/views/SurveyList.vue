@@ -83,19 +83,19 @@ const formatDate = (date: string) => {
   return new Date(date).toLocaleDateString('zh-CN');
 };
 
-const viewSurvey = (id: number) => {
+const viewSurvey = (id: string) => {
   router.push(`/surveys/${id}`);
 };
 
-const takeSurvey = (id: number) => {
+const takeSurvey = (id: string) => {
   router.push(`/surveys/${id}/take`);
 };
 
-const editSurvey = (id: number) => {
+const editSurvey = (id: string) => {
   router.push(`/edit-survey/${id}`);
 };
 
-const viewResults = (id: number) => {
+const viewResults = (id: string) => {
   router.push(`/surveys/${id}/results`);
 };
 

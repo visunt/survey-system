@@ -142,7 +142,7 @@ const goBack = () => {
 
 const loadResults = async () => {
   try {
-    const id = Number(route.params.id);
+    const id = route.params.id as string;
 
     // 并行加载问卷和统计数据
     const [surveyResponse, statsResponse] = await Promise.all([
@@ -168,6 +168,8 @@ onMounted(() => {
 <style scoped>
 .survey-results {
   padding: 20px 0;
+  max-width: 900px;
+  margin: 0 auto;
 }
 
 .page-header {
