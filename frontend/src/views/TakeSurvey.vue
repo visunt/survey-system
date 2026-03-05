@@ -137,7 +137,8 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
-import { ElMessage, FormInstance } from 'element-plus';
+import { ElMessage } from 'element-plus';
+import type { FormInstance } from 'element-plus';
 import { surveyAPI, type Survey, type Question } from '../api/survey';
 import { responseAPI, type Answer } from '../api/response';
 import { useAuthStore } from '../stores/auth';

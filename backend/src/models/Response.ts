@@ -1,10 +1,10 @@
-import { DataTypes, Model } from 'sequelize';
+import { DataTypes, Model, Op } from 'sequelize';
 import sequelize from '../config/database';
 import { ResponseAttributes } from '../types';
 
 class Response extends Model<ResponseAttributes> implements ResponseAttributes {
   public id!: number;
-  public surveyId!: number;
+  public surveyId!: string;
   public userId?: number;
   public deviceId?: string;
   public ipAddress?: string;
@@ -21,7 +21,7 @@ Response.init(
       autoIncrement: true,
     },
     surveyId: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.STRING(12),
       allowNull: false,
       references: {
         model: 'surveys',
@@ -61,7 +61,7 @@ Response.init(
         name: 'survey_device_unique',
         where: {
           device_id: {
-            [sequelize.Sequelize.Op.ne]: null,
+            [Op.ne]: null,
           },
         },
       },

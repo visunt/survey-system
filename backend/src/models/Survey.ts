@@ -1,9 +1,10 @@
 import { DataTypes, Model } from 'sequelize';
 import sequelize from '../config/database';
 import { SurveyAttributes } from '../types';
+import { generateId } from '../utils/generateId';
 
 class Survey extends Model<SurveyAttributes> implements SurveyAttributes {
-  public id!: number;
+  public id!: string;
   public title!: string;
   public description?: string;
   public status!: 'draft' | 'published' | 'closed';
@@ -20,9 +21,9 @@ class Survey extends Model<SurveyAttributes> implements SurveyAttributes {
 Survey.init(
   {
     id: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.STRING(12),
       primaryKey: true,
-      autoIncrement: true,
+      defaultValue: () => generateId(12),
     },
     title: {
       type: DataTypes.STRING(200),

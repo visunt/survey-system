@@ -4,7 +4,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const sequelize = new Sequelize({
-  dialect: 'mariadb',
+  dialect: 'mysql',
   host: process.env.DB_HOST || 'localhost',
   port: parseInt(process.env.DB_PORT || '3306'),
   database: process.env.DB_NAME || 'survey_platform',

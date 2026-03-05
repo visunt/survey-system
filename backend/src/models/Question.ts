@@ -1,12 +1,12 @@
 import { DataTypes, Model, Association } from 'sequelize';
 import sequelize from '../config/database';
-import { QuestionAttributes, SkipLogic } from '../types';
+import { QuestionAttributes, QuestionOptionAttributes, SkipLogic } from '../types';
 import Survey from './Survey';
 import QuestionOption from './QuestionOption';
 
 class Question extends Model<QuestionAttributes> implements QuestionAttributes {
   public id!: number;
-  public surveyId!: number;
+  public surveyId!: string;
   public title!: string;
   public type!: 'single_choice' | 'multiple_choice' | 'text' | 'textarea' | 'rating' | 'date' | 'dropdown_single' | 'dropdown_multiple' | 'switch';
   public isRequired!: boolean;
@@ -30,7 +30,7 @@ Question.init(
       autoIncrement: true,
     },
     surveyId: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.STRING(12),
       allowNull: false,
       references: {
         model: 'surveys',
@@ -61,8 +61,8 @@ Question.init(
         const value = this.getDataValue('skipLogic');
         return value ? (typeof value === 'string' ? JSON.parse(value) : value) : null;
       },
-      set(value: SkipLogic | null) {
-        this.setDataValue('skipLogic', value ? JSON.stringify(value) : null);
+      set(value: SkipLogic | null | undefined) {
+        this.setDataValue('skipLogic', value ? JSON.stringify(value) as any : undefined);
       },
     },
   },

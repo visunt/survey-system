@@ -6,7 +6,6 @@ export const register = async (req: Request, res: Response) => {
   try {
     const { username, email, password } = req.body;
 
-    // Check if user already exists
     const existingUser = await User.findOne({ where: { email } });
     if (existingUser) {
       return res.status(400).json({ error: 'Email already registered' });
@@ -17,14 +16,13 @@ export const register = async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Username already taken' });
     }
 
-    // Hash password
     const hashedPassword = await hashPassword(password);
 
-    // Create user
     const user = await User.create({
       username,
       email,
       password: hashedPassword,
+      role: 'user',
     });
 
     const token = generateToken(user.id, user.username, user.email, user.role);
@@ -48,13 +46,11 @@ export const login = async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
 
-    // Find user
     const user = await User.findOne({ where: { email } });
     if (!user) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    // Verify password
     const isValidPassword = await comparePassword(password, user.password);
     if (!isValidPassword) {
       return res.status(401).json({ error: 'Invalid credentials' });

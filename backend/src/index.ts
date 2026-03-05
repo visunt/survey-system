@@ -3,7 +3,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
-import { sequelize } from './config/database';
+import sequelize from './config/database';
 import authRoutes from './routes/authRoutes';
 import surveyRoutes from './routes/surveyRoutes';
 import responseRoutes from './routes/responseRoutes';

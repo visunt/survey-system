@@ -7,8 +7,9 @@ export const submitResponse = async (req: AuthRequest, res: Response) => {
     const { surveyId } = req.params;
     const { answers, deviceId } = req.body;
     const userId = req.user?.id;
+    const surveyIdStr = Array.isArray(surveyId) ? surveyId[0] : surveyId;
 
-    const survey = await Survey.findByPk(surveyId);
+    const survey = await Survey.findByPk(surveyIdStr);
 
     if (!survey) {
       return res.status(404).json({ error: 'Survey not found' });
@@ -28,7 +29,7 @@ export const submitResponse = async (req: AuthRequest, res: Response) => {
 
     if (survey.limitByDevice && deviceId) {
       const existingResponse = await SurveyResponse.findOne({
-        where: { surveyId, deviceId },
+        where: { surveyId: surveyIdStr, deviceId },
       });
       if (existingResponse) {
         return res.status(400).json({ error: 'This device has already submitted a response' });
@@ -36,7 +37,7 @@ export const submitResponse = async (req: AuthRequest, res: Response) => {
     }
 
     const questions = await Question.findAll({
-      where: { surveyId },
+      where: { surveyId: surveyIdStr },
       include: [{ model: QuestionOption, as: 'options' }],
     });
 
@@ -49,7 +50,7 @@ export const submitResponse = async (req: AuthRequest, res: Response) => {
     }
 
     const response = await SurveyResponse.create({
-      surveyId,
+      surveyId: surveyIdStr,
       userId,
       deviceId: survey.limitByDevice ? deviceId : null,
       ipAddress: req.ip,
@@ -74,8 +75,9 @@ export const getSurveyResponses = async (req: AuthRequest, res: Response) => {
   try {
     const { surveyId } = req.params;
     const userId = req.user!.id;
+    const surveyIdStr = Array.isArray(surveyId) ? surveyId[0] : surveyId;
 
-    const survey = await Survey.findByPk(surveyId);
+    const survey = await Survey.findByPk(surveyIdStr);
 
     if (!survey) {
       return res.status(404).json({ error: 'Survey not found' });
@@ -86,7 +88,7 @@ export const getSurveyResponses = async (req: AuthRequest, res: Response) => {
     }
 
     const responses = await SurveyResponse.findAll({
-      where: { surveyId },
+      where: { surveyId: surveyIdStr },
       include: [
         {
           model: Answer,
@@ -107,8 +109,9 @@ export const getSurveyStatistics = async (req: AuthRequest, res: Response) => {
   try {
     const { surveyId } = req.params;
     const userId = req.user!.id;
+    const surveyIdStr = Array.isArray(surveyId) ? surveyId[0] : surveyId;
 
-    const survey = await Survey.findByPk(surveyId);
+    const survey = await Survey.findByPk(surveyIdStr);
 
     if (!survey) {
       return res.status(404).json({ error: 'Survey not found' });
@@ -119,7 +122,7 @@ export const getSurveyStatistics = async (req: AuthRequest, res: Response) => {
     }
 
     const questions = await Question.findAll({
-      where: { surveyId },
+      where: { surveyId: surveyIdStr },
       include: [
         {
           model: Answer,
@@ -130,34 +133,34 @@ export const getSurveyStatistics = async (req: AuthRequest, res: Response) => {
       ],
     });
 
-    const statistics = questions.map((question) => {
+    const statistics = questions.map((question: any) => {
       const stats: any = {
         id: question.id,
         title: question.title,
         type: question.type,
-        totalResponses: question.answers.length,
+        totalResponses: question.answers?.length || 0,
         required: question.isRequired,
       };
 
       if (['single_choice', 'multiple_choice'].includes(question.type)) {
-        stats.options = question.options.map((option) => {
-          const count = question.answers.filter((a) => a.answer.includes(option.text)).length;
+        stats.options = question.options?.map((option: any) => {
+          const count = question.answers?.filter((a: any) => a.answer.includes(option.text)).length || 0;
           return {
             text: option.text,
             count,
-            percentage: question.answers.length > 0 ? (count / question.answers.length) * 100 : 0,
+            percentage: question.answers?.length > 0 ? (count / question.answers.length) * 100 : 0,
           };
         });
       } else if (question.type === 'rating') {
-        const ratings = question.answers.map((a) => parseFloat(a.answer)).filter((r) => !isNaN(r));
-        stats.average = ratings.length > 0 ? ratings.reduce((a, b) => a + b, 0) / ratings.length : 0;
+        const ratings = question.answers?.map((a: any) => parseFloat(a.answer)).filter((r: any) => !isNaN(r)) || [];
+        stats.average = ratings.length > 0 ? ratings.reduce((a: number, b: number) => a + b, 0) / ratings.length : 0;
         stats.distribution = {};
-        ratings.forEach((r) => {
+        ratings.forEach((r: number) => {
           const key = r.toString();
           stats.distribution[key] = (stats.distribution[key] || 0) + 1;
         });
       } else {
-        stats.answers = question.answers.map((a) => a.answer);
+        stats.answers = question.answers?.map((a: any) => a.answer) || [];
       }
 
       return stats;

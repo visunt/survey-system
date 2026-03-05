@@ -7,6 +7,8 @@ export const createSurvey = async (req: AuthRequest, res: Response) => {
     const userId = req.user!.id;
     const { title, description, allowAnonymous, requireLogin, questions } = req.body;
 
+    console.log('Creating survey with data:', { title, description, allowAnonymous, requireLogin, questions });
+
     const survey = await Survey.create({
       title,
       description,
@@ -15,6 +17,8 @@ export const createSurvey = async (req: AuthRequest, res: Response) => {
       allowAnonymous: allowAnonymous || false,
       requireLogin: requireLogin !== undefined ? requireLogin : true,
     });
+
+    console.log('Survey created with ID:', survey.id);
 
     if (questions && Array.isArray(questions)) {
       for (const questionData of questions) {
@@ -50,6 +54,7 @@ export const createSurvey = async (req: AuthRequest, res: Response) => {
 
     res.status(201).json(surveyWithDetails);
   } catch (error) {
+    console.error('Error creating survey:', error);
     res.status(500).json({ error: 'Server error', details: (error as Error).message });
   }
 };
@@ -88,8 +93,9 @@ export const getSurveys = async (req: Request, res: Response) => {
 export const getSurveyById = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+    const surveyId = Array.isArray(id) ? id[0] : id;
 
-    const survey = await Survey.findByPk(id, {
+    const survey = await Survey.findByPk(surveyId, {
       include: [
         {
           model: Question,
@@ -115,8 +121,9 @@ export const updateSurvey = async (req: AuthRequest, res: Response) => {
     const { id } = req.params;
     const userId = req.user!.id;
     const { title, description, status, startDate, endDate, allowAnonymous, requireLogin, questions } = req.body;
+    const surveyId = Array.isArray(id) ? id[0] : id;
 
-    const survey = await Survey.findByPk(id);
+    const survey = await Survey.findByPk(surveyId);
 
     if (!survey) {
       return res.status(404).json({ error: 'Survey not found' });
@@ -182,8 +189,9 @@ export const deleteSurvey = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     const userId = req.user!.id;
+    const surveyId = Array.isArray(id) ? id[0] : id;
 
-    const survey = await Survey.findByPk(id);
+    const survey = await Survey.findByPk(surveyId);
 
     if (!survey) {
       return res.status(404).json({ error: 'Survey not found' });
@@ -205,8 +213,9 @@ export const publishSurvey = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     const userId = req.user!.id;
+    const surveyId = Array.isArray(id) ? id[0] : id;
 
-    const survey = await Survey.findByPk(id);
+    const survey = await Survey.findByPk(surveyId);
 
     if (!survey) {
       return res.status(404).json({ error: 'Survey not found' });

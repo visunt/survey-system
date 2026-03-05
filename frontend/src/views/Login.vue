@@ -5,13 +5,13 @@
         <h2>登录</h2>
       </template>
 
-      <el-form :model="form" :rules="rules" ref="formRef" label-width="80px">
+      <el-form :model="form" :rules="rules" ref="formRef" label-width="80px" @submit.prevent>
         <el-form-item label="邮箱" prop="email">
           <el-input v-model="form.email" type="email" placeholder="请输入邮箱" />
         </el-form-item>
 
         <el-form-item label="密码" prop="password">
-          <el-input v-model="form.password" type="password" placeholder="请输入密码" show-password />
+          <el-input v-model="form.password" type="password" placeholder="请输入密码" show-password @keyup.enter="handleLogin" />
         </el-form-item>
 
         <el-form-item>
@@ -34,9 +34,11 @@
 <script setup lang="ts">
 import { ref, reactive } from 'vue';
 import { useRouter } from 'vue-router';
-import { ElMessage, FormInstance, FormRules } from 'element-plus';
+import { ElMessage } from 'element-plus';
+import type { FormInstance, FormRules } from 'element-plus';
 import { authAPI } from '../api/auth';
 import { useAuthStore } from '../stores/auth';
+import { hashPassword } from '../utils/password';
 
 const router = useRouter();
 const authStore = useAuthStore();
@@ -63,20 +65,32 @@ const rules: FormRules = {
 const handleLogin = async () => {
   if (!formRef.value) return;
 
+  loading.value = true;
+
   try {
     await formRef.value.validate();
-    loading.value = true;
+  } catch (error) {
+    loading.value = false;
+    return;
+  }
 
+  try {
     const response = await authAPI.login({
       email: form.email,
-      password: form.password,
+      password: hashPassword(form.password),
     });
 
     authStore.setAuth(response.data.user, response.data.token);
     ElMessage.success('登录成功');
     router.push('/');
   } catch (error: any) {
-    ElMessage.error(error.response?.data?.error || '登录失败');
+    const errorMessage = error.response?.data?.error || '登录失败，请检查邮箱和密码';
+    ElMessage({
+      message: errorMessage,
+      type: 'error',
+      duration: 3000,
+      showClose: true,
+    });
   } finally {
     loading.value = false;
   }

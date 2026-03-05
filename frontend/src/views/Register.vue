@@ -42,9 +42,11 @@
 <script setup lang="ts">
 import { ref, reactive } from 'vue';
 import { useRouter } from 'vue-router';
-import { ElMessage, FormInstance, FormRules } from 'element-plus';
+import { ElMessage } from 'element-plus';
+import type { FormInstance, FormRules } from 'element-plus';
 import { authAPI } from '../api/auth';
 import { useAuthStore } from '../stores/auth';
+import { hashPassword } from '../utils/password';
 
 const router = useRouter();
 const authStore = useAuthStore();
@@ -96,7 +98,7 @@ const handleRegister = async () => {
     const response = await authAPI.register({
       username: form.username,
       email: form.email,
-      password: form.password,
+      password: hashPassword(form.password),
     });
 
     authStore.setAuth(response.data.user, response.data.token);

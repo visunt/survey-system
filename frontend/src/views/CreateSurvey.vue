@@ -6,26 +6,38 @@
       </template>
     </el-page-header>
 
-    <el-form :model="survey" label-width="100px" class="survey-form">
+    <el-form :model="survey" label-width="100px" class="survey-form" label-position="top">
       <el-card class="info-card">
-        <h3>问卷信息</h3>
-        <el-form-item label="问卷标题" required>
-          <el-input v-model="survey.title" placeholder="请输入问卷标题" />
-        </el-form-item>
-        <el-form-item label="问卷描述">
-          <el-input
-            v-model="survey.description"
-            type="textarea"
-            :rows="3"
-            placeholder="请输入问卷描述"
-          />
-        </el-form-item>
-        <el-form-item label="匿名设置">
-          <el-checkbox v-model="survey.allowAnonymous">允许匿名填写</el-checkbox>
-        </el-form-item>
-        <el-form-item label="登录设置">
-          <el-checkbox v-model="survey.requireLogin">需要登录后填写</el-checkbox>
-        </el-form-item>
+        <template #header>
+          <h3>问卷信息</h3>
+        </template>
+        <el-row :gutter="20">
+          <el-col :xs="24" :sm="24" :md="24" :lg="24">
+            <el-form-item label="问卷标题" required>
+              <el-input v-model="survey.title" placeholder="请输入问卷标题" />
+            </el-form-item>
+          </el-col>
+          <el-col :xs="24" :sm="24" :md="24" :lg="24">
+            <el-form-item label="问卷描述">
+              <el-input
+                v-model="survey.description"
+                type="textarea"
+                :rows="3"
+                placeholder="请输入问卷描述"
+              />
+            </el-form-item>
+          </el-col>
+          <el-col :xs="24" :sm="12" :md="12" :lg="12">
+            <el-form-item label="匿名设置">
+              <el-checkbox v-model="survey.allowAnonymous">允许匿名填写</el-checkbox>
+            </el-form-item>
+          </el-col>
+          <el-col :xs="24" :sm="12" :md="12" :lg="12">
+            <el-form-item label="登录设置">
+              <el-checkbox v-model="survey.requireLogin">需要登录后填写</el-checkbox>
+            </el-form-item>
+          </el-col>
+        </el-row>
       </el-card>
 
       <el-card class="questions-card">
@@ -40,10 +52,13 @@
                 <el-dropdown-menu>
                   <el-dropdown-item @click="addQuestion('single_choice')">单选题</el-dropdown-item>
                   <el-dropdown-item @click="addQuestion('multiple_choice')">多选题</el-dropdown-item>
+                  <el-dropdown-item @click="addQuestion('dropdown_single')">下拉单选</el-dropdown-item>
+                  <el-dropdown-item @click="addQuestion('dropdown_multiple')">下拉多选</el-dropdown-item>
                   <el-dropdown-item @click="addQuestion('text')">文本题</el-dropdown-item>
                   <el-dropdown-item @click="addQuestion('textarea')">文本域</el-dropdown-item>
                   <el-dropdown-item @click="addQuestion('rating')">评分题</el-dropdown-item>
                   <el-dropdown-item @click="addQuestion('date')">日期题</el-dropdown-item>
+                  <el-dropdown-item @click="addQuestion('switch')">开关题</el-dropdown-item>
                 </el-dropdown-menu>
               </template>
             </el-dropdown>
@@ -67,8 +82,10 @@
                 placeholder="请输入题目"
                 class="question-title-input"
               />
-              <el-checkbox v-model="question.isRequired">必填</el-checkbox>
-              <el-button type="danger" :icon="Delete" circle size="small" @click="removeQuestion(index)" />
+              <div class="question-actions">
+                <el-checkbox v-model="question.isRequired">必填</el-checkbox>
+                <el-button type="danger" :icon="Delete" circle size="small" @click="removeQuestion(index)" />
+              </div>
             </div>
 
             <div class="question-type-label">
@@ -76,21 +93,69 @@
             </div>
 
             <!-- 选项配置 -->
-            <div v-if="['single_choice', 'multiple_choice'].includes(question.type)" class="options-config">
-              <div v-for="(option, oIndex) in question.options" :key="oIndex" class="option-item">
-                <span class="option-label">{{ String.fromCharCode(65 + oIndex) }}.</span>
-                <el-input v-model="option.text" placeholder="请输入选项内容" class="option-input" />
-                <el-button
-                  type="danger"
-                  :icon="Delete"
-                  circle
-                  size="small"
-                  @click="removeOption(index, oIndex)"
-                />
+            <div v-if="['single_choice', 'multiple_choice', 'dropdown_single', 'dropdown_multiple'].includes(question.type)" class="options-config">
+              <div class="options-header">
+                <el-radio-group v-model="question.inputMode" size="small">
+                  <el-radio-button label="single">逐个添加</el-radio-button>
+                  <el-radio-button label="batch">批量添加</el-radio-button>
+                </el-radio-group>
               </div>
-              <el-button type="primary" :icon="Plus" size="small" @click="addOption(index)">
-                添加选项
-              </el-button>
+
+              <!-- 逐个添加模式 -->
+              <div v-if="question.inputMode === 'single'" class="single-mode">
+                <div v-for="(option, oIndex) in question.options" :key="oIndex" class="option-item">
+                  <span class="option-label">{{ String.fromCharCode(65 + oIndex) }}.</span>
+                  <el-input v-model="option.text" placeholder="请输入选项内容" class="option-input" />
+                  <el-button
+                    type="danger"
+                    :icon="Delete"
+                    circle
+                    size="small"
+                    @click="removeOption(index, oIndex)"
+                  />
+                </div>
+                <el-button type="primary" :icon="Plus" size="small" @click="addOption(index)">
+                  添加选项
+                </el-button>
+              </div>
+
+              <!-- 批量添加模式 -->
+              <div v-else class="batch-mode">
+                <el-input
+                  v-model="question.batchText"
+                  type="textarea"
+                  :rows="6"
+                  placeholder="请输入选项，每行一个选项&#10;例如：&#10;选项一&#10;选项二&#10;选项三"
+                  @blur="parseBatchOptions(index)"
+                />
+                <div class="batch-tips">
+                  <el-icon><InfoFilled /></el-icon>
+                  <span>每行输入一个选项，空行将被自动忽略</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- 插入题目按钮 -->
+            <div class="insert-question">
+              <el-dropdown trigger="click" @command="(type: string) => insertQuestion(index, type)">
+                <el-button type="primary" size="small" plain>
+                  <el-icon><Plus /></el-icon>
+                  在此处插入题目
+                </el-button>
+                <template #dropdown>
+                  <el-dropdown-menu>
+                    <el-dropdown-item command="single_choice">单选题</el-dropdown-item>
+                    <el-dropdown-item command="multiple_choice">多选题</el-dropdown-item>
+                    <el-dropdown-item command="dropdown_single">下拉单选</el-dropdown-item>
+                    <el-dropdown-item command="dropdown_multiple">下拉多选</el-dropdown-item>
+                    <el-dropdown-item command="text">文本题</el-dropdown-item>
+                    <el-dropdown-item command="textarea">文本域</el-dropdown-item>
+                    <el-dropdown-item command="rating">评分题</el-dropdown-item>
+                    <el-dropdown-item command="date">日期题</el-dropdown-item>
+                    <el-dropdown-item command="switch">开关题</el-dropdown-item>
+                  </el-dropdown-menu>
+                </template>
+              </el-dropdown>
             </div>
           </div>
         </div>
@@ -109,7 +174,7 @@
 import { ref, reactive, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { ElMessage } from 'element-plus';
-import { ArrowDown, Delete, Plus } from '@element-plus/icons-vue';
+import { ArrowDown, Delete, Plus, InfoFilled } from '@element-plus/icons-vue';
 import { surveyAPI, type Survey, type Question, type QuestionOption } from '../api/survey';
 
 const router = useRouter();
@@ -138,36 +203,57 @@ const getQuestionTypeText = (type: string) => {
   const texts: Record<string, string> = {
     single_choice: '单选题',
     multiple_choice: '多选题',
+    dropdown_single: '下拉单选',
+    dropdown_multiple: '下拉多选',
     text: '文本题',
     textarea: '文本域',
     rating: '评分题',
     date: '日期题',
+    switch: '开关题',
   };
   return texts[type] || type;
 };
 
 const addQuestion = (type: string) => {
-  const newQuestion: Question = {
+  const newQuestion: any = {
     id: questionIdCounter--,
     title: '',
-    type: type as any,
+    type: type,
     isRequired: true,
     orderIndex: survey.questions!.length,
-    options: ['single_choice', 'multiple_choice'].includes(type) ? [] : undefined,
+    options: ['single_choice', 'multiple_choice', 'dropdown_single', 'dropdown_multiple'].includes(type) ? [] : undefined,
+    inputMode: 'single',
+    batchText: '',
   };
   survey.questions!.push(newQuestion);
 };
 
+const insertQuestion = (afterIndex: number, type: string) => {
+  const newQuestion: any = {
+    id: questionIdCounter--,
+    title: '',
+    type: type,
+    isRequired: true,
+    orderIndex: afterIndex + 1,
+    options: ['single_choice', 'multiple_choice', 'dropdown_single', 'dropdown_multiple'].includes(type) ? [] : undefined,
+    inputMode: 'single',
+    batchText: '',
+  };
+  survey.questions!.splice(afterIndex + 1, 0, newQuestion);
+  survey.questions!.forEach((q: any, i: number) => {
+    q.orderIndex = i;
+  });
+};
+
 const removeQuestion = (index: number) => {
   survey.questions!.splice(index, 1);
-  // 更新orderIndex
-  survey.questions!.forEach((q, i) => {
+  survey.questions!.forEach((q: any, i: number) => {
     q.orderIndex = i;
   });
 };
 
 const addOption = (questionIndex: number) => {
-  const question = survey.questions![questionIndex];
+  const question = survey.questions![questionIndex] as any;
   if (!question.options) {
     question.options = [];
   }
@@ -179,12 +265,27 @@ const addOption = (questionIndex: number) => {
 };
 
 const removeOption = (questionIndex: number, optionIndex: number) => {
-  const question = survey.questions![questionIndex];
+  const question = survey.questions![questionIndex] as any;
   question.options!.splice(optionIndex, 1);
-  // 更新orderIndex
-  question.options!.forEach((o, i) => {
+  question.options!.forEach((o: any, i: number) => {
     o.orderIndex = i;
   });
+};
+
+const parseBatchOptions = (questionIndex: number) => {
+  const question = survey.questions![questionIndex] as any;
+  if (!question.batchText) return;
+
+  const lines = question.batchText
+    .split('\n')
+    .map((line: string) => line.trim())
+    .filter((line: string) => line.length > 0);
+
+  question.options = lines.map((text: string, index: number) => ({
+    id: optionIdCounter--,
+    text,
+    orderIndex: index,
+  }));
 };
 
 const saveDraft = async () => {
@@ -222,18 +323,20 @@ const publishSurvey = async () => {
     return;
   }
 
-  // 验证题目
-  for (const question of survey.questions) {
+  for (const question of survey.questions as any[]) {
     if (!question.title?.trim()) {
       ElMessage.warning('请填写所有题目的标题');
       return;
     }
-    if (['single_choice', 'multiple_choice'].includes(question.type)) {
+    if (['single_choice', 'multiple_choice', 'dropdown_single', 'dropdown_multiple'].includes(question.type)) {
+      if (question.inputMode === 'batch' && question.batchText) {
+        parseBatchOptions(survey.questions!.indexOf(question));
+      }
       if (!question.options || question.options.length === 0) {
-        ElMessage.warning('选择题至少需要两个选项');
+        ElMessage.warning('选择题至少需要一个选项');
         return;
       }
-      if (question.options.some((o) => !o.text?.trim())) {
+      if (question.options.some((o: any) => !o.text?.trim())) {
         ElMessage.warning('请填写所有选项的内容');
         return;
       }
@@ -246,7 +349,7 @@ const publishSurvey = async () => {
 
     if (isEdit.value) {
       const id = Number(route.params.id);
-      const response = await surveyAPI.updateSurvey(id, { ...survey, status: 'published' } as Survey);
+      await surveyAPI.updateSurvey(id, { ...survey, status: 'published' } as Survey);
       surveyId = id;
     } else {
       const response = await surveyAPI.createSurvey({ ...survey, status: 'published' } as Survey);
@@ -274,7 +377,11 @@ const loadSurvey = async () => {
       survey.description = data.description;
       survey.allowAnonymous = data.allowAnonymous;
       survey.requireLogin = data.requireLogin;
-      survey.questions = data.questions || [];
+      survey.questions = (data.questions || []).map((q: any) => ({
+        ...q,
+        inputMode: 'single',
+        batchText: '',
+      }));
     } catch (error) {
       console.error('Failed to load survey:', error);
       ElMessage.error('加载问卷失败');
@@ -290,6 +397,8 @@ onMounted(() => {
 <style scoped>
 .create-survey {
   padding: 20px 0;
+  max-width: 1200px;
+  margin: 0 auto;
 }
 
 .page-header {
@@ -301,8 +410,7 @@ onMounted(() => {
 }
 
 .survey-form {
-  max-width: 900px;
-  margin: 0 auto;
+  padding: 0 20px;
 }
 
 .info-card {
@@ -310,13 +418,15 @@ onMounted(() => {
 }
 
 .info-card h3 {
-  margin-top: 0;
+  margin: 0;
 }
 
 .card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
 }
 
 .card-header h3 {
@@ -350,6 +460,7 @@ onMounted(() => {
   align-items: center;
   gap: 12px;
   margin-bottom: 12px;
+  flex-wrap: wrap;
 }
 
 .question-number {
@@ -360,6 +471,13 @@ onMounted(() => {
 
 .question-title-input {
   flex: 1;
+  min-width: 200px;
+}
+
+.question-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .question-type-label {
@@ -373,11 +491,21 @@ onMounted(() => {
   padding-left: 24px;
 }
 
+.options-header {
+  margin-bottom: 12px;
+}
+
+.single-mode {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 .option-item {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 8px;
+  flex-wrap: wrap;
 }
 
 .option-label {
@@ -387,6 +515,28 @@ onMounted(() => {
 
 .option-input {
   flex: 1;
+  min-width: 200px;
+}
+
+.batch-mode {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.batch-tips {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #909399;
+  font-size: 12px;
+}
+
+.insert-question {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px dashed #e4e7ed;
+  text-align: center;
 }
 
 .actions {
@@ -394,5 +544,55 @@ onMounted(() => {
   justify-content: flex-end;
   gap: 12px;
   margin-top: 40px;
+  padding: 0 20px 20px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 768px) {
+  .create-survey {
+    padding: 10px 0;
+  }
+
+  .survey-form {
+    padding: 0 10px;
+  }
+
+  .question-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .question-title-input {
+    width: 100%;
+  }
+
+  .question-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .option-item {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .option-input {
+    width: 100%;
+  }
+
+  .actions {
+    flex-direction: column;
+    padding: 0 10px 10px;
+  }
+
+  .actions .el-button {
+    width: 100%;
+  }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  .survey-form {
+    padding: 0 40px;
+  }
 }
 </style>

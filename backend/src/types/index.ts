@@ -1,3 +1,5 @@
+import { Request } from 'express';
+
 export interface UserAttributes {
   id?: number;
   username: string;
@@ -9,7 +11,7 @@ export interface UserAttributes {
 }
 
 export interface SurveyAttributes {
-  id?: number;
+  id?: string;
   title: string;
   description?: string;
   status: 'draft' | 'published' | 'closed';
@@ -25,7 +27,7 @@ export interface SurveyAttributes {
 
 export interface QuestionAttributes {
   id?: number;
-  surveyId: number;
+  surveyId: string;
   title: string;
   type: 'single_choice' | 'multiple_choice' | 'text' | 'textarea' | 'rating' | 'date' | 'dropdown_single' | 'dropdown_multiple' | 'switch';
   isRequired: boolean;
@@ -60,7 +62,7 @@ export interface QuestionOptionAttributes {
 
 export interface ResponseAttributes {
   id?: number;
-  surveyId: number;
+  surveyId: string;
   userId?: number;
   deviceId?: string;
   ipAddress?: string;
