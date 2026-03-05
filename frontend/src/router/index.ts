@@ -22,6 +22,7 @@ const routes: RouteRecordRaw[] = [
     path: '/surveys',
     name: 'SurveyList',
     component: () => import('../views/SurveyList.vue'),
+    meta: { requiresAuth: true },
   },
   {
     path: '/surveys/:id',

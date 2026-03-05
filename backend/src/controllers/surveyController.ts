@@ -90,6 +90,57 @@ export const getSurveys = async (req: Request, res: Response) => {
   }
 };
 
+export const getMySurveys = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user!.id;
+
+    const surveys = await Survey.findAll({
+      where: { creatorId: userId },
+      include: [
+        {
+          model: Question,
+          as: 'questions',
+          include: [{ model: QuestionOption, as: 'options' }],
+        },
+      ],
+      order: [['createdAt', 'DESC']],
+    });
+
+    res.json(surveys);
+  } catch (error) {
+    res.status(500).json({ error: 'Server error', details: (error as Error).message });
+  }
+};
+
+export const getMyResponses = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const { Response, Survey, Question, QuestionOption, Answer } = await import('../models');
+
+    const responses = await Response.findAll({
+      where: { userId },
+      include: [
+        {
+          model: Survey,
+          as: 'survey',
+          include: [
+            {
+              model: Question,
+              as: 'questions',
+              include: [{ model: QuestionOption, as: 'options' }],
+            },
+          ],
+        },
+      ],
+      order: [['submittedAt', 'DESC']],
+    });
+
+    res.json(responses);
+  } catch (error) {
+    res.status(500).json({ error: 'Server error', details: (error as Error).message });
+  }
+};
+
 export const getSurveyById = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;

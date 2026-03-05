@@ -45,9 +45,21 @@ export interface Survey {
   updatedAt?: string;
 }
 
+export interface SurveyResponse {
+  id: number;
+  surveyId: string;
+  userId?: number;
+  submittedAt: string;
+  survey?: Survey;
+}
+
 export const surveyAPI = {
   getSurveys: (params?: { status?: string; creatorId?: number }) =>
     api.get('/surveys', { params }),
+
+  getMySurveys: () => api.get('/surveys/my/surveys'),
+
+  getMyResponses: () => api.get('/surveys/my/responses'),
 
   getSurveyById: (id: string) => api.get(`/surveys/${id}`),
 
