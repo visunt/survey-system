@@ -7,13 +7,13 @@ import sequelize from './config/database';
 import authRoutes from './routes/authRoutes';
 import surveyRoutes from './routes/surveyRoutes';
 import responseRoutes from './routes/responseRoutes';
+import passwordRoutes from './routes/passwordRoutes';
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Middleware
 app.use(helmet());
 app.use(cors({
   origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
@@ -23,10 +23,10 @@ app.use(morgan('combined'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/surveys', surveyRoutes);
 app.use('/api', responseRoutes);
+app.use('/api/password', passwordRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

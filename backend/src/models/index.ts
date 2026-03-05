@@ -5,6 +5,7 @@ import Question from './Question';
 import QuestionOption from './QuestionOption';
 import Response from './Response';
 import Answer from './Answer';
+import PasswordReset from './PasswordReset';
 
 // Define associations
 User.hasMany(Survey, { foreignKey: 'creatorId', as: 'surveys' });
@@ -36,4 +37,5 @@ export {
   QuestionOption,
   Response,
   Answer,
+  PasswordReset,
 };
