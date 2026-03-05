@@ -5,8 +5,12 @@
       <stop offset="100%" stop-color="#8b5cf6"/>
     </linearGradient>
     <linearGradient id="shine" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="white" stop-opacity="0.2"/>
+      <stop offset="0%" stop-color="white" stop-opacity="0.25"/>
       <stop offset="100%" stop-color="white" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="letterGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="white"/>
+      <stop offset="100%" stop-color="#e0e7ff"/>
     </linearGradient>
   </defs>
   
@@ -14,17 +18,31 @@
   <rect width="512" height="512" rx="128" fill="url(#bg)"/>
   
   <!-- Shine -->
-  <ellipse cx="256" cy="180" rx="200" ry="120" fill="url(#shine)"/>
+  <ellipse cx="256" cy="160" rx="220" ry="140" fill="url(#shine)"/>
   
-  <!-- VMU Text - Bold & Clean -->
-  <text x="256" y="320" 
-        font-family="Arial Black, Helvetica, sans-serif" 
-        font-size="160" 
-        font-weight="900" 
-        fill="white" 
-        text-anchor="middle" 
-        letter-spacing="4">VMU</text>
+  <!-- VMU - Creative Geometric Design -->
+  <g fill="url(#letterGrad)">
+    <!-- V - Dynamic angular shape -->
+    <path d="M50 130 L130 130 L180 310 L230 130 L310 130 L210 390 L150 390 Z">
+      <animateTransform attributeName="transform" type="skewX" values="-3;0;-3" dur="4s" repeatCount="indefinite"/>
+    </path>
+    
+    <!-- M - Split & connected -->
+    <path d="M230 130 L290 130 L290 390 L250 390 L250 200 L230 250 L210 200 L210 390 L170 390 L170 130 L230 130 L240 180 Z">
+      <animateTransform attributeName="transform" type="skewX" values="2;-1;2" dur="4s" repeatCount="indefinite"/>
+    </path>
+    
+    <!-- U - Rounded with power -->
+    <path d="M330 130 L410 130 L410 300 C410 360 370 390 310 390 C250 390 210 360 210 300 L210 130 L290 130 L290 300 C290 315 298 325 310 325 C322 325 330 315 330 300 Z">
+      <animateTransform attributeName="transform" type="skewX" values="-2;1;-2" dur="4s" repeatCount="indefinite"/>
+    </path>
+  </g>
   
-  <!-- Accent underline -->
-  <rect x="100" y="360" width="312" height="6" rx="3" fill="white" opacity="0.4"/>
+  <!-- Power dots -->
+  <circle cx="70" cy="420" r="12" fill="white" opacity="0.4"/>
+  <circle cx="100" cy="420" r="8" fill="white" opacity="0.3"/>
+  <circle cx="122" cy="420" r="5" fill="white" opacity="0.2"/>
+  
+  <!-- Corner accent -->
+  <path d="M420 60 L460 60 L460 100" stroke="white" stroke-width="4" stroke-linecap="round" opacity="0.3"/>
 </svg>
