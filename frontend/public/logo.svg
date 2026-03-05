@@ -4,11 +4,14 @@
       <stop offset="0%" stop-color="#6366f1"/>
       <stop offset="100%" stop-color="#8b5cf6"/>
     </linearGradient>
-    <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
-      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="#000" flood-opacity="0.15"/>
+    <filter id="shadow1" x="-50%" y="-50%" width="200%" height="200%">
+      <feDropShadow dx="-2" dy="4" stdDeviation="4" flood-color="#000" flood-opacity="0.2"/>
+    </filter>
+    <filter id="shadow2" x="-50%" y="-50%" width="200%" height="200%">
+      <feDropShadow dx="2" dy="4" stdDeviation="4" flood-color="#000" flood-opacity="0.2"/>
     </filter>
     <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
-      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feGaussianBlur stdDeviation="2" result="blur"/>
       <feMerge>
         <feMergeNode in="blur"/>
         <feMergeNode in="SourceGraphic"/>
@@ -19,64 +22,68 @@
   <!-- Background -->
   <rect width="512" height="512" rx="128" fill="url(#bg)"/>
   
-  <!-- Decorative circles background -->
-  <circle cx="100" cy="100" r="60" fill="white" opacity="0.05"/>
-  <circle cx="420" cy="420" r="80" fill="white" opacity="0.05"/>
-  <circle cx="400" cy="80" r="40" fill="white" opacity="0.08"/>
-  
-  <!-- VMU built from basic shapes -->
-  <g filter="url(#shadow)">
-    <!-- V - Built from triangles and circles -->
-    <g fill="white">
-      <!-- V left bar -->
-      <rect x="60" y="130" width="35" height="200" rx="8" transform="rotate(-15, 77, 230)"/>
-      <!-- V right bar -->
-      <rect x="175" y="130" width="35" height="200" rx="8" transform="rotate(15, 192, 230)"/>
-      <!-- V bottom circle -->
-      <circle cx="135" cy="350" r="25"/>
-      <!-- V top left circle -->
-      <circle cx="75" cy="140" r="18"/>
-      <!-- V top right circle -->
-      <circle cx="195" cy="140" r="18"/>
+  <!-- Overlapping circles pattern - creating VMU silhouette -->
+  <g opacity="0.95">
+    <!-- V - Created by overlapping circles -->
+    <g filter="url(#shadow1)">
+      <circle cx="80" cy="150" r="45" fill="white" opacity="0.9"/>
+      <circle cx="95" cy="200" r="42" fill="white" opacity="0.85"/>
+      <circle cx="110" cy="250" r="40" fill="white" opacity="0.8"/>
+      <circle cx="125" cy="300" r="38" fill="white" opacity="0.75"/>
+      <circle cx="140" cy="340" r="35" fill="white" opacity="0.7"/>
+      <circle cx="155" cy="370" r="30" fill="white" opacity="0.65"/>
+      
+      <circle cx="190" cy="150" r="45" fill="white" opacity="0.9"/>
+      <circle cx="175" cy="200" r="42" fill="white" opacity="0.85"/>
+      <circle cx="160" cy="250" r="40" fill="white" opacity="0.8"/>
+      <circle cx="145" cy="300" r="38" fill="white" opacity="0.75"/>
     </g>
     
-    <!-- M - Built from rectangles and circles -->
-    <g fill="white">
-      <!-- M left bar -->
-      <rect x="220" y="130" width="30" height="220" rx="8"/>
-      <!-- M right bar -->
-      <rect x="320" y="130" width="30" height="220" rx="8"/>
-      <!-- M left diagonal -->
-      <rect x="235" y="150" width="25" height="120" rx="8" transform="rotate(25, 247, 210)"/>
-      <!-- M right diagonal -->
-      <rect x="295" y="150" width="25" height="120" rx="8" transform="rotate(-25, 307, 210)"/>
-      <!-- M top circles -->
-      <circle cx="235" cy="140" r="15"/>
-      <circle cx="335" cy="140" r="15"/>
-      <!-- M middle diamond -->
-      <rect x="265" y="195" width="20" height="20" rx="4" transform="rotate(45, 275, 205)"/>
+    <!-- M - Created by overlapping circles -->
+    <g filter="url(#shadow2)">
+      <circle cx="230" cy="150" r="40" fill="white" opacity="0.9"/>
+      <circle cx="230" cy="200" r="38" fill="white" opacity="0.85"/>
+      <circle cx="230" cy="250" r="36" fill="white" opacity="0.8"/>
+      <circle cx="230" cy="300" r="34" fill="white" opacity="0.75"/>
+      <circle cx="230" cy="350" r="32" fill="white" opacity="0.7"/>
+      
+      <circle cx="330" cy="150" r="40" fill="white" opacity="0.9"/>
+      <circle cx="330" cy="200" r="38" fill="white" opacity="0.85"/>
+      <circle cx="330" cy="250" r="36" fill="white" opacity="0.8"/>
+      <circle cx="330" cy="300" r="34" fill="white" opacity="0.75"/>
+      <circle cx="330" cy="350" r="32" fill="white" opacity="0.7"/>
+      
+      <!-- M middle diagonal -->
+      <circle cx="260" cy="170" r="30" fill="white" opacity="0.85"/>
+      <circle cx="275" cy="200" r="28" fill="white" opacity="0.8"/>
+      <circle cx="290" cy="230" r="26" fill="white" opacity="0.75"/>
+      <circle cx="305" cy="200" r="28" fill="white" opacity="0.8"/>
+      <circle cx="320" cy="170" r="30" fill="white" opacity="0.85"/>
     </g>
     
-    <!-- U - Built from rectangles and circles -->
-    <g fill="white">
-      <!-- U left bar -->
-      <rect x="370" y="130" width="30" height="180" rx="8"/>
-      <!-- U right bar -->
-      <rect x="450" y="130" width="30" height="180" rx="8"/>
-      <!-- U bottom - rounded rectangle -->
-      <rect x="370" y="280" width="110" height="50" rx="25"/>
-      <!-- U top circles -->
-      <circle cx="385" cy="140" r="15"/>
-      <circle cx="465" cy="140" r="15"/>
+    <!-- U - Created by overlapping circles -->
+    <g filter="url(#shadow1)">
+      <circle cx="380" cy="150" r="38" fill="white" opacity="0.9"/>
+      <circle cx="380" cy="200" r="36" fill="white" opacity="0.85"/>
+      <circle cx="380" cy="250" r="34" fill="white" opacity="0.8"/>
+      <circle cx="380" cy="300" r="32" fill="white" opacity="0.75"/>
+      
+      <circle cx="460" cy="150" r="38" fill="white" opacity="0.9"/>
+      <circle cx="460" cy="200" r="36" fill="white" opacity="0.85"/>
+      <circle cx="460" cy="250" r="34" fill="white" opacity="0.8"/>
+      <circle cx="460" cy="300" r="32" fill="white" opacity="0.75"/>
+      
+      <!-- U bottom curve -->
+      <circle cx="390" cy="330" r="30" fill="white" opacity="0.7"/>
+      <circle cx="410" cy="350" r="32" fill="white" opacity="0.75"/>
+      <circle cx="430" cy="355" r="34" fill="white" opacity="0.8"/>
+      <circle cx="450" cy="350" r="32" fill="white" opacity="0.75"/>
+      <circle cx="470" cy="330" r="30" fill="white" opacity="0.7"/>
     </g>
   </g>
   
   <!-- Accent dots -->
-  <circle cx="80" cy="420" r="8" fill="white" opacity="0.5"/>
-  <circle cx="105" cy="420" r="6" fill="white" opacity="0.4"/>
-  <circle cx="125" cy="420" r="4" fill="white" opacity="0.3"/>
-  
-  <!-- Corner decoration -->
-  <circle cx="440" cy="70" r="6" fill="white" opacity="0.4"/>
-  <circle cx="460" cy="90" r="4" fill="white" opacity="0.3"/>
+  <circle cx="70" cy="430" r="6" fill="white" opacity="0.5"/>
+  <circle cx="90" cy="430" r="5" fill="white" opacity="0.4"/>
+  <circle cx="106" cy="430" r="4" fill="white" opacity="0.3"/>
 </svg>
