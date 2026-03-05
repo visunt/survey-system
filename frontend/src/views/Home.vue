@@ -610,6 +610,10 @@ onMounted(() => {
   justify-content: center;
 }
 
+.features .el-col {
+  margin-bottom: 24px;
+}
+
 .feature-card {
   background: #f8fafc;
   text-align: center;

@@ -33,7 +33,7 @@
 
 <script setup lang="ts">
 import { ref, reactive } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import type { FormInstance, FormRules } from 'element-plus';
 import { authAPI } from '../api/auth';
@@ -41,6 +41,7 @@ import { useAuthStore } from '../stores/auth';
 import { hashPassword } from '../utils/password';
 
 const router = useRouter();
+const route = useRoute();
 const authStore = useAuthStore();
 
 const formRef = ref<FormInstance>();
@@ -82,7 +83,9 @@ const handleLogin = async () => {
 
     authStore.setAuth(response.data.user, response.data.token);
     ElMessage.success('登录成功');
-    router.push('/');
+    
+    const redirect = route.query.redirect as string;
+    router.push(redirect || '/');
   } catch (error: any) {
     const errorMessage = error.response?.data?.error || '登录失败，请检查邮箱和密码';
     ElMessage({
