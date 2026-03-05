@@ -6,6 +6,8 @@ export interface UserAttributes {
   email: string;
   password: string;
   role: 'admin' | 'user';
+  loginAttempts?: number;
+  lockUntil?: Date;
   createdAt?: Date;
   updatedAt?: Date;
 }

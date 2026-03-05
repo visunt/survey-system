@@ -8,6 +8,8 @@ class User extends Model<UserAttributes> implements UserAttributes {
   public email!: string;
   public password!: string;
   public role!: 'admin' | 'user';
+  public loginAttempts!: number;
+  public lockUntil!: Date | null;
   public readonly createdAt!: Date;
   public readonly updatedAt!: Date;
 }
@@ -40,6 +42,15 @@ User.init(
       type: DataTypes.ENUM('admin', 'user'),
       defaultValue: 'user',
       allowNull: false,
+    },
+    loginAttempts: {
+      type: DataTypes.INTEGER,
+      defaultValue: 0,
+      allowNull: false,
+    },
+    lockUntil: {
+      type: DataTypes.DATE,
+      allowNull: true,
     },
   },
   {
