@@ -3,7 +3,10 @@
     <el-container>
       <el-header v-if="isAuthenticated" class="header">
         <div class="header-content">
-          <h1 class="logo">问卷平台</h1>
+          <div class="logo-container">
+            <img src="/logo.svg" alt="VMU Logo" class="logo-image" />
+            <h1 class="logo-text">问卷平台</h1>
+          </div>
           <nav class="nav">
             <router-link to="/">首页</router-link>
             <router-link to="/surveys">问卷列表</router-link>
@@ -60,7 +63,18 @@ const handleLogout = () => {
   margin: 0 auto;
 }
 
-.logo {
+.logo-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logo-image {
+  height: 40px;
+  width: auto;
+}
+
+.logo-text {
   font-size: 24px;
   margin: 0;
 }
@@ -90,8 +104,8 @@ const handleLogout = () => {
 }
 
 .main-content {
-  max-width: 1200px;
-  margin: 0 auto;
   padding: 20px;
+  background: #f5f7fa;
+  min-height: calc(100vh - 60px);
 }
 </style>
