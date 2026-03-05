@@ -1,22 +1,32 @@
 import { Response, Request } from 'express';
 import { User } from '../models';
 import { hashPassword, comparePassword, generateToken } from '../utils/auth';
+import { verifyCaptcha } from '../utils/captcha';
 
 const MAX_LOGIN_ATTEMPTS = 5;
 const LOCK_TIME = 15 * 60 * 1000;
+const CAPTCHA_THRESHOLD = 3;
 
 export const register = async (req: Request, res: Response) => {
   try {
-    const { username, email, password } = req.body;
+    const { username, email, password, captchaId, captchaCode } = req.body;
+
+    if (!captchaId || !captchaCode) {
+      return res.status(400).json({ error: '请输入验证码', requireCaptcha: true });
+    }
+
+    if (!verifyCaptcha(captchaId, captchaCode)) {
+      return res.status(400).json({ error: '验证码错误或已过期', requireCaptcha: true });
+    }
 
     const existingUser = await User.findOne({ where: { email } });
     if (existingUser) {
-      return res.status(400).json({ error: 'Email already registered' });
+      return res.status(400).json({ error: '邮箱已被注册' });
     }
 
     const existingUsername = await User.findOne({ where: { username } });
     if (existingUsername) {
-      return res.status(400).json({ error: 'Username already taken' });
+      return res.status(400).json({ error: '用户名已被使用' });
     }
 
     const hashedPassword = await hashPassword(password);
@@ -32,7 +42,7 @@ export const register = async (req: Request, res: Response) => {
     const token = generateToken(user.id, user.username, user.email, user.role);
 
     res.status(201).json({
-      message: 'User registered successfully',
+      message: '注册成功',
       token,
       user: {
         id: user.id,
@@ -42,13 +52,13 @@ export const register = async (req: Request, res: Response) => {
       },
     });
   } catch (error) {
-    res.status(500).json({ error: 'Server error', details: (error as Error).message });
+    res.status(500).json({ error: '服务器错误', details: (error as Error).message });
   }
 };
 
 export const login = async (req: Request, res: Response) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, captchaId, captchaCode } = req.body;
 
     const user = await User.findOne({ where: { email } });
     if (!user) {
@@ -66,6 +76,26 @@ export const login = async (req: Request, res: Response) => {
 
     if (user.lockUntil && new Date(user.lockUntil) <= new Date()) {
       await user.update({ loginAttempts: 0, lockUntil: null });
+    }
+
+    const needCaptcha = (user.loginAttempts || 0) >= CAPTCHA_THRESHOLD;
+    
+    if (needCaptcha) {
+      if (!captchaId || !captchaCode) {
+        return res.status(400).json({ 
+          error: '请输入验证码', 
+          requireCaptcha: true,
+          remainingAttempts: MAX_LOGIN_ATTEMPTS - (user.loginAttempts || 0),
+        });
+      }
+
+      if (!verifyCaptcha(captchaId, captchaCode)) {
+        return res.status(400).json({ 
+          error: '验证码错误或已过期', 
+          requireCaptcha: true,
+          remainingAttempts: MAX_LOGIN_ATTEMPTS - (user.loginAttempts || 0),
+        });
+      }
     }
 
     const isValidPassword = await comparePassword(password, user.password);
@@ -86,9 +116,12 @@ export const login = async (req: Request, res: Response) => {
       
       await user.update({ loginAttempts: newAttempts });
       
+      const requireCaptcha = newAttempts >= CAPTCHA_THRESHOLD;
+      
       return res.status(401).json({ 
         error: `邮箱或密码错误，剩余 ${remainingAttempts} 次尝试机会`,
         remainingAttempts,
+        requireCaptcha,
       });
     }
 
@@ -97,7 +130,7 @@ export const login = async (req: Request, res: Response) => {
     const token = generateToken(user.id, user.username, user.email, user.role);
 
     res.json({
-      message: 'Login successful',
+      message: '登录成功',
       token,
       user: {
         id: user.id,
@@ -107,7 +140,7 @@ export const login = async (req: Request, res: Response) => {
       },
     });
   } catch (error) {
-    res.status(500).json({ error: 'Server error', details: (error as Error).message });
+    res.status(500).json({ error: '服务器错误', details: (error as Error).message });
   }
 };
 
@@ -119,11 +152,33 @@ export const getProfile = async (req: Request, res: Response) => {
     });
 
     if (!userData) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(404).json({ error: '用户不存在' });
     }
 
     res.json(userData);
   } catch (error) {
-    res.status(500).json({ error: 'Server error', details: (error as Error).message });
+    res.status(500).json({ error: '服务器错误', details: (error as Error).message });
+  }
+};
+
+export const checkCaptchaRequired = async (req: Request, res: Response) => {
+  try {
+    const { email } = req.query;
+    
+    if (!email) {
+      return res.json({ requireCaptcha: false });
+    }
+
+    const user = await User.findOne({ where: { email: email as string } });
+    
+    if (!user) {
+      return res.json({ requireCaptcha: false });
+    }
+
+    const requireCaptcha = (user.loginAttempts || 0) >= CAPTCHA_THRESHOLD;
+    
+    res.json({ requireCaptcha });
+  } catch (error) {
+    res.status(500).json({ error: '服务器错误' });
   }
 };

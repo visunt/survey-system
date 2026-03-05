@@ -8,6 +8,7 @@ import authRoutes from './routes/authRoutes';
 import surveyRoutes from './routes/surveyRoutes';
 import responseRoutes from './routes/responseRoutes';
 import passwordRoutes from './routes/passwordRoutes';
+import captchaRoutes from './routes/captchaRoutes';
 
 dotenv.config();
 
@@ -27,6 +28,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/surveys', surveyRoutes);
 app.use('/api', responseRoutes);
 app.use('/api/password', passwordRoutes);
+app.use('/api/captcha', captchaRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

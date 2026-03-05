@@ -28,6 +28,7 @@
     "nanoid": "^5.1.6",
     "nodemailer": "^8.0.1",
     "sequelize": "^6.37.7",
+    "svg-captcha": "^1.4.0",
     "uuid": "^13.0.0"
   },
   "devDependencies": {

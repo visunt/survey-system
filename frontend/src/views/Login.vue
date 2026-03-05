@@ -7,11 +7,18 @@
 
       <el-form :model="form" :rules="rules" ref="formRef" label-width="80px" @submit.prevent>
         <el-form-item label="邮箱" prop="email">
-          <el-input v-model="form.email" type="email" placeholder="请输入邮箱" />
+          <el-input v-model="form.email" type="email" placeholder="请输入邮箱" @blur="checkCaptchaRequired" />
         </el-form-item>
 
         <el-form-item label="密码" prop="password">
           <el-input v-model="form.password" type="password" placeholder="请输入密码" show-password @keyup.enter="handleLogin" />
+        </el-form-item>
+
+        <el-form-item v-if="showCaptcha" label="验证码" prop="captchaCode">
+          <div class="captcha-row">
+            <el-input v-model="form.captchaCode" placeholder="请输入验证码" class="captcha-input" />
+            <div class="captcha-svg" v-html="captchaSvg" @click="refreshCaptcha" title="点击刷新"></div>
+          </div>
         </el-form-item>
 
         <el-form-item>
@@ -32,7 +39,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue';
+import { ref, reactive, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import type { FormInstance, FormRules } from 'element-plus';
@@ -46,10 +53,14 @@ const authStore = useAuthStore();
 
 const formRef = ref<FormInstance>();
 const loading = ref(false);
+const showCaptcha = ref(false);
+const captchaSvg = ref('');
+const captchaId = ref('');
 
 const form = reactive({
   email: '',
   password: '',
+  captchaCode: '',
 });
 
 const rules: FormRules = {
@@ -61,6 +72,39 @@ const rules: FormRules = {
     { required: true, message: '请输入密码', trigger: 'blur' },
     { min: 6, message: '密码长度不能少于6位', trigger: 'blur' },
   ],
+  captchaCode: [
+    { required: true, message: '请输入验证码', trigger: 'blur' },
+  ],
+};
+
+const fetchCaptcha = async () => {
+  try {
+    const response = await authAPI.getCaptcha();
+    captchaId.value = response.data.captchaId;
+    captchaSvg.value = response.data.svg;
+  } catch (error) {
+    console.error('Failed to fetch captcha:', error);
+  }
+};
+
+const refreshCaptcha = () => {
+  fetchCaptcha();
+};
+
+const checkCaptchaRequired = async () => {
+  if (!form.email) return;
+  
+  try {
+    const response = await authAPI.checkCaptchaRequired(form.email);
+    if (response.data.requireCaptcha) {
+      showCaptcha.value = true;
+      if (!captchaId.value) {
+        await fetchCaptcha();
+      }
+    }
+  } catch (error) {
+    console.error('Failed to check captcha requirement:', error);
+  }
 };
 
 const handleLogin = async () => {
@@ -76,10 +120,17 @@ const handleLogin = async () => {
   }
 
   try {
-    const response = await authAPI.login({
+    const loginData: any = {
       email: form.email,
       password: hashPassword(form.password),
-    });
+    };
+
+    if (showCaptcha.value) {
+      loginData.captchaId = captchaId.value;
+      loginData.captchaCode = form.captchaCode;
+    }
+
+    const response = await authAPI.login(loginData);
 
     authStore.setAuth(response.data.user, response.data.token);
     ElMessage.success('登录成功');
@@ -87,7 +138,15 @@ const handleLogin = async () => {
     const redirect = route.query.redirect as string;
     router.push(redirect || '/');
   } catch (error: any) {
-    const errorMessage = error.response?.data?.error || '登录失败，请检查邮箱和密码';
+    const responseData = error.response?.data || {};
+    const errorMessage = responseData.error || '登录失败，请检查邮箱和密码';
+    
+    if (responseData.requireCaptcha) {
+      showCaptcha.value = true;
+      await fetchCaptcha();
+      form.captchaCode = '';
+    }
+    
     ElMessage({
       message: errorMessage,
       type: 'error',
@@ -98,6 +157,13 @@ const handleLogin = async () => {
     loading.value = false;
   }
 };
+
+onMounted(() => {
+  if (route.query.email) {
+    form.email = route.query.email as string;
+    checkCaptchaRequired();
+  }
+});
 </script>
 
 <style scoped>
@@ -133,5 +199,27 @@ const handleLogin = async () => {
 
 .register-link:hover {
   text-decoration: underline;
+}
+
+.captcha-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.captcha-input {
+  flex: 1;
+}
+
+.captcha-svg {
+  cursor: pointer;
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.captcha-svg :deep(svg) {
+  display: block;
 }
 </style>

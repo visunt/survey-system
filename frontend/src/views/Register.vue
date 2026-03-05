@@ -22,6 +22,13 @@
           <el-input v-model="form.confirmPassword" type="password" placeholder="请再次输入密码" show-password />
         </el-form-item>
 
+        <el-form-item label="验证码" prop="captchaCode">
+          <div class="captcha-row">
+            <el-input v-model="form.captchaCode" placeholder="请输入验证码" class="captcha-input" />
+            <div class="captcha-svg" v-html="captchaSvg" @click="refreshCaptcha" title="点击刷新"></div>
+          </div>
+        </el-form-item>
+
         <el-form-item>
           <el-button type="primary" @click="handleRegister" :loading="loading" style="width: 100%">
             注册
@@ -40,7 +47,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue';
+import { ref, reactive, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import type { FormInstance, FormRules } from 'element-plus';
@@ -53,12 +60,15 @@ const authStore = useAuthStore();
 
 const formRef = ref<FormInstance>();
 const loading = ref(false);
+const captchaSvg = ref('');
+const captchaId = ref('');
 
 const form = reactive({
   username: '',
   email: '',
   password: '',
   confirmPassword: '',
+  captchaCode: '',
 });
 
 const validateConfirmPassword = (rule: any, value: any, callback: any) => {
@@ -86,6 +96,23 @@ const rules: FormRules = {
     { required: true, message: '请再次输入密码', trigger: 'blur' },
     { validator: validateConfirmPassword, trigger: 'blur' },
   ],
+  captchaCode: [
+    { required: true, message: '请输入验证码', trigger: 'blur' },
+  ],
+};
+
+const fetchCaptcha = async () => {
+  try {
+    const response = await authAPI.getCaptcha();
+    captchaId.value = response.data.captchaId;
+    captchaSvg.value = response.data.svg;
+  } catch (error) {
+    console.error('Failed to fetch captcha:', error);
+  }
+};
+
+const refreshCaptcha = () => {
+  fetchCaptcha();
 };
 
 const handleRegister = async () => {
@@ -99,17 +126,29 @@ const handleRegister = async () => {
       username: form.username,
       email: form.email,
       password: hashPassword(form.password),
+      captchaId: captchaId.value,
+      captchaCode: form.captchaCode,
     });
 
     authStore.setAuth(response.data.user, response.data.token);
     ElMessage.success('注册成功');
     router.push('/');
   } catch (error: any) {
-    ElMessage.error(error.response?.data?.error || '注册失败');
+    const responseData = error.response?.data || {};
+    ElMessage.error(responseData.error || '注册失败');
+    
+    if (responseData.requireCaptcha) {
+      await fetchCaptcha();
+      form.captchaCode = '';
+    }
   } finally {
     loading.value = false;
   }
 };
+
+onMounted(() => {
+  fetchCaptcha();
+});
 </script>
 
 <style scoped>
@@ -145,5 +184,27 @@ const handleRegister = async () => {
 
 .login-link:hover {
   text-decoration: underline;
+}
+
+.captcha-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.captcha-input {
+  flex: 1;
+}
+
+.captcha-svg {
+  cursor: pointer;
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.captcha-svg :deep(svg) {
+  display: block;
 }
 </style>
