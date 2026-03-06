@@ -233,10 +233,7 @@ const addQuestion = () => {
     type: 'single_choice',
     isRequired: true,
     orderIndex: survey.questions!.length,
-    options: [
-      { id: optionIdCounter--, text: '', orderIndex: 0 },
-      { id: optionIdCounter--, text: '', orderIndex: 1 },
-    ],
+    options: [],
     inputMode: 'batch',
     batchText: '',
   };
@@ -264,14 +261,17 @@ const changeQuestionType = (question: any, type: string) => {
 const changeInputMode = (question: any, mode: string) => {
   question.inputMode = mode;
   if (mode === 'single' && question.batchText && question.batchText.trim()) {
+    const existingOptions = question.options || [];
     parseBatchOptions(survey.questions!.indexOf(question));
-  } else if (mode === 'batch') {
-    if (question.options && question.options.length > 2) {
-      question.options = question.options.slice(0, 2);
+    if (question.options && question.options.length > existingOptions.length) {
+      const newOptions = question.options.slice(existingOptions.length);
+      newOptions.forEach((o: any) => {
+        o.orderIndex = question.options!.length;
+      });
     }
-    if (!question.batchText) {
-      const options = question.options || [];
-      question.batchText = options.map((o: any) => o.text).join('\n');
+  } else if (mode === 'batch') {
+    if (question.options && question.options.length > 0) {
+      question.batchText = question.options.map((o: any) => o.text).join('\n');
     }
   }
 };
@@ -337,11 +337,13 @@ const removeOption = (questionIndex: number, optionIndex: number) => {
 const parseBatchOptions = (questionIndex: number) => {
   const question = survey.questions![questionIndex] as any;
   if (!question.batchText) return;
-
+  
   const lines = question.batchText
     .split('\n')
     .map((line: string) => line.trim())
     .filter((line: string) => line.length > 0);
+
+  if (lines.length === 0) return;
 
   question.options = lines.map((text: string, index: number) => ({
     id: optionIdCounter--,
