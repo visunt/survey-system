@@ -350,16 +350,18 @@ const parseBatchOptions = (questionIndex: number, append: boolean = false) => {
 
   if (lines.length === 0) return;
 
-  const existingOptions = question.options || [];
-  const startIndex = existingOptions.length;
-  
   const newOptions = lines.map((text: string, index: number) => ({
     id: optionIdCounter--,
     text,
-    orderIndex: startIndex + index,
+    orderIndex: index,
   }));
   
-  question.options = append ? [...existingOptions, ...newOptions] : newOptions;
+  if (append) {
+    const existingOptions = question.options || [];
+    question.options = [...existingOptions, ...newOptions];
+  } else {
+    question.options = newOptions;
+  }
 };
 
 const updateBatchTextFromOptions = (question: any) => {
