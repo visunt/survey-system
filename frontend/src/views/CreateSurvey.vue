@@ -261,14 +261,7 @@ const changeQuestionType = (question: any, type: string) => {
 const changeInputMode = (question: any, mode: string) => {
   question.inputMode = mode;
   if (mode === 'single' && question.batchText && question.batchText.trim()) {
-    const existingOptions = question.options || [];
-    parseBatchOptions(survey.questions!.indexOf(question));
-    if (question.options && question.options.length > existingOptions.length) {
-      const newOptions = question.options.slice(existingOptions.length);
-      newOptions.forEach((o: any) => {
-        o.orderIndex = question.options!.length;
-      });
-    }
+    parseBatchOptions(survey.questions!.indexOf(question), true);
   } else if (mode === 'batch') {
     if (question.options && question.options.length > 0) {
       question.batchText = question.options.map((o: any) => o.text).join('\n');
@@ -334,7 +327,7 @@ const removeOption = (questionIndex: number, optionIndex: number) => {
   });
 };
 
-const parseBatchOptions = (questionIndex: number) => {
+const parseBatchOptions = (questionIndex: number, append: boolean = false) => {
   const question = survey.questions![questionIndex] as any;
   if (!question.batchText) return;
   
@@ -345,11 +338,16 @@ const parseBatchOptions = (questionIndex: number) => {
 
   if (lines.length === 0) return;
 
-  question.options = lines.map((text: string, index: number) => ({
+  const existingOptions = question.options || [];
+  const startIndex = existingOptions.length;
+  
+  const newOptions = lines.map((text: string, index: number) => ({
     id: optionIdCounter--,
     text,
-    orderIndex: index,
+    orderIndex: startIndex + index,
   }));
+  
+  question.options = append ? [...existingOptions, ...newOptions] : newOptions;
 };
 
 const saveDraft = async () => {
