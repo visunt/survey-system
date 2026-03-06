@@ -3,7 +3,7 @@ import { generateCaptcha } from '../utils/captcha';
 
 const router = Router();
 
-router.get('/captcha', (req, res: Response) => {
+router.get('/', (req, res: Response) => {
   const captchaData = generateCaptcha();
   
   res.json({

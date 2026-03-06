@@ -3,10 +3,10 @@
     <el-container>
       <el-header v-if="isAuthenticated" class="header">
         <div class="header-content">
-          <div class="logo-container">
+          <router-link to="/" class="logo-container">
             <img src="/logo.svg" alt="VMU Logo" class="logo-image" />
             <h1 class="logo-text">问卷平台</h1>
-          </div>
+          </router-link>
           <nav class="nav">
             <router-link to="/">首页</router-link>
             <router-link to="/surveys">问卷列表</router-link>
@@ -84,6 +84,8 @@ html, body {
   display: flex;
   align-items: center;
   gap: 10px;
+  text-decoration: none;
+  color: inherit;
 }
 
 .logo-image {
