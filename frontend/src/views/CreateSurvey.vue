@@ -70,8 +70,8 @@
                   class="title-input-inline"
                   @click.stop
                 />
+                <el-checkbox v-model="question.isRequired" size="small" @click.stop>必填</el-checkbox>
                 <el-tag size="small" type="info">{{ getQuestionTypeText(question.type) }}</el-tag>
-                <el-tag v-if="question.isRequired" size="small" type="danger">必填</el-tag>
               </div>
             </div>
 
@@ -91,9 +91,6 @@
                       <el-radio-button value="switch">开关题</el-radio-button>
                     </el-radio-group>
                   </div>
-                  <el-form-item class="required-input-item">
-                    <el-checkbox v-model="question.isRequired">必填</el-checkbox>
-                  </el-form-item>
                 </div>
 
                 <!-- 选项配置 -->
@@ -300,8 +297,11 @@ const insertQuestionAfter = (index: number) => {
     type: 'single_choice',
     isRequired: true,
     orderIndex: index + 1,
-    options: [],
-    inputMode: 'single',
+    options: [
+      { id: optionIdCounter--, text: '', orderIndex: 0 },
+      { id: optionIdCounter--, text: '', orderIndex: 1 },
+    ],
+    inputMode: 'batch',
     batchText: '',
   };
   survey.questions!.splice(index + 1, 0, newQuestion);
@@ -668,6 +668,11 @@ onMounted(() => {
   height: 24px;
   display: inline-flex;
   align-items: center;
+}
+
+.title-input-inline :deep(.el-checkbox) {
+  margin-left: 8px;
+  flex-shrink: 0;
 }
 
 .question-actions {
