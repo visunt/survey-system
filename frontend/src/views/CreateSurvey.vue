@@ -259,7 +259,10 @@ const changeQuestionType = (question: any, type: string) => {
 };
 
 const changeInputMode = (question: any, mode: string) => {
+  if (question.inputMode === mode) return;
+  
   question.inputMode = mode;
+  
   if (mode === 'single' && question.batchText && question.batchText.trim()) {
     parseBatchOptions(survey.questions!.indexOf(question), true);
   } else if (mode === 'batch') {
