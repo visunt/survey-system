@@ -100,30 +100,11 @@
                   <div class="options-header">
                     <el-radio-group v-model="question.inputMode" size="small" @change="(val) => changeInputMode(question, val)">
                       <el-radio-button label="batch">批量添加</el-radio-button>
-                      <el-radio-button label="single">逐个添加</el-radio-button>
                     </el-radio-group>
                   </div>
 
-                  <!-- 逐个添加模式 -->
-                  <div v-if="question.inputMode === 'single'" class="single-mode">
-                    <div v-for="(option, oIndex) in question.options" :key="oIndex" class="option-item">
-                      <span class="option-label">{{ String.fromCharCode(65 + oIndex) }}.</span>
-                      <el-input v-model="option.text" placeholder="请输入选项内容" class="option-input" />
-                      <el-button
-                        type="danger"
-                        :icon="Delete"
-                        circle
-                        size="small"
-                        @click="removeOption(index, oIndex)"
-                      />
-                    </div>
-                    <el-button type="primary" :icon="Plus" size="small" @click="addOption(index)">
-                      添加选项
-                    </el-button>
-                  </div>
-
                   <!-- 批量添加模式 -->
-                  <div v-else class="batch-mode">
+                  <div class="batch-mode">
                     <el-input
                       v-model="question.batchText"
                       type="textarea"
