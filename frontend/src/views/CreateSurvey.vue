@@ -297,10 +297,7 @@ const insertQuestionAfter = (index: number) => {
     type: 'single_choice',
     isRequired: true,
     orderIndex: index + 1,
-    options: [
-      { id: optionIdCounter--, text: '', orderIndex: 0 },
-      { id: optionIdCounter--, text: '', orderIndex: 1 },
-    ],
+    options: [],
     inputMode: 'batch',
     batchText: '',
   };
