@@ -263,8 +263,10 @@ const changeInputMode = (question: any, mode: string) => {
   
   question.inputMode = mode;
   
-  if (mode === 'single' && question.batchText && question.batchText.trim()) {
-    parseBatchOptions(survey.questions!.indexOf(question), true);
+  if (mode === 'single') {
+    if (question.batchText && question.batchText.trim()) {
+      parseBatchOptions(survey.questions!.indexOf(question), true);
+    }
   } else if (mode === 'batch') {
     if (question.options && question.options.length > 0) {
       question.batchText = question.options.map((o: any) => o.text).join('\n');
@@ -320,6 +322,10 @@ const addOption = (questionIndex: number) => {
     text: '',
     orderIndex: question.options.length,
   });
+  
+  if (question.inputMode === 'single') {
+    updateBatchTextFromOptions(question);
+  }
 };
 
 const removeOption = (questionIndex: number, optionIndex: number) => {
@@ -328,6 +334,10 @@ const removeOption = (questionIndex: number, optionIndex: number) => {
   question.options!.forEach((o: any, i: number) => {
     o.orderIndex = i;
   });
+  
+  if (question.inputMode === 'single') {
+    updateBatchTextFromOptions(question);
+  }
 };
 
 const parseBatchOptions = (questionIndex: number, append: boolean = false) => {
@@ -351,6 +361,12 @@ const parseBatchOptions = (questionIndex: number, append: boolean = false) => {
   }));
   
   question.options = append ? [...existingOptions, ...newOptions] : newOptions;
+};
+
+const updateBatchTextFromOptions = (question: any) => {
+  if (question.options && question.options.length > 0) {
+    question.batchText = question.options.map((o: any) => o.text).join('\n');
+  }
 };
 
 const saveDraft = async () => {
