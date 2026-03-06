@@ -102,8 +102,8 @@
                   
                   <div class="options-header">
                     <el-radio-group v-model="question.inputMode" size="small">
-                      <el-radio-button label="single">逐个添加</el-radio-button>
                       <el-radio-button label="batch">批量添加</el-radio-button>
+                      <el-radio-button label="single">逐个添加</el-radio-button>
                     </el-radio-group>
                   </div>
 
@@ -256,6 +256,13 @@ const onQuestionTypeChange = (question: any) => {
 const changeQuestionType = (question: any, type: string) => {
   question.type = type;
   onQuestionTypeChange(question);
+};
+
+const changeInputMode = (question: any, mode: string) => {
+  question.inputMode = mode;
+  if (mode === 'single' && question.batchText && question.batchText.trim()) {
+    parseBatchOptions(survey.questions!.indexOf(question));
+  }
 };
 
 const moveQuestion = (index: number, direction: number) => {
