@@ -233,7 +233,10 @@ const addQuestion = () => {
     type: 'single_choice',
     isRequired: true,
     orderIndex: survey.questions!.length,
-    options: [],
+    options: [
+      { id: optionIdCounter--, text: '', orderIndex: 0 },
+      { id: optionIdCounter--, text: '', orderIndex: 1 },
+    ],
     inputMode: 'batch',
     batchText: '',
   };
@@ -262,6 +265,14 @@ const changeInputMode = (question: any, mode: string) => {
   question.inputMode = mode;
   if (mode === 'single' && question.batchText && question.batchText.trim()) {
     parseBatchOptions(survey.questions!.indexOf(question));
+  } else if (mode === 'batch') {
+    if (question.options && question.options.length > 2) {
+      question.options = question.options.slice(0, 2);
+    }
+    if (!question.batchText) {
+      const options = question.options || [];
+      question.batchText = options.map((o: any) => o.text).join('\n');
+    }
   }
 };
 
