@@ -101,7 +101,7 @@
                   <el-divider content-position="left">选项设置</el-divider>
                   
                   <div class="options-header">
-                    <el-radio-group v-model="question.inputMode" size="small">
+                    <el-radio-group v-model="question.inputMode" size="small" @change="(val) => changeInputMode(question, val)">
                       <el-radio-button label="batch">批量添加</el-radio-button>
                       <el-radio-button label="single">逐个添加</el-radio-button>
                     </el-radio-group>
