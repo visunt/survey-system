@@ -93,30 +93,6 @@
                   </div>
                 </div>
 
-                <!-- 选项配置 -->
-                <div v-if="['single_choice', 'multiple_choice', 'dropdown_single', 'dropdown_multiple'].includes(question.type)" class="options-config">
-                  <el-divider content-position="left">选项设置</el-divider>
-                  
-                  <div class="options-header">
-                    <el-radio-group v-model="question.inputMode" size="small" @change="(val) => changeInputMode(question, val)">
-                      <el-radio-button label="batch">批量添加</el-radio-button>
-                    </el-radio-group>
-                  </div>
-
-                  <!-- 批量添加模式 -->
-                  <div class="batch-mode">
-                    <el-input
-                      v-model="question.batchText"
-                      type="textarea"
-                      :rows="6"
-                      placeholder="请输入选项，每行一个选项&#10;例如：&#10;选项一&#10;选项二&#10;选项三"
-                      @blur="parseBatchOptions(index)"
-                    />
-                    <div class="batch-tips">
-                      <el-icon><InfoFilled /></el-icon>
-                      <span>每行输入一个选项，空行将被自动忽略</span>
-                    </div>
-                  </div>
                 </div>
               </div>
             </el-collapse-transition>
