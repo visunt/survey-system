@@ -261,13 +261,12 @@ const changeQuestionType = (question: any, type: string) => {
 const changeInputMode = (question: any, mode: string) => {
   if (question.inputMode === mode) return;
   
+  const oldMode = question.inputMode;
   question.inputMode = mode;
   
-  if (mode === 'single') {
-    if (question.batchText && question.batchText.trim()) {
-      parseBatchOptions(survey.questions!.indexOf(question), true);
-    }
-  } else if (mode === 'batch') {
+  if (mode === 'single' && oldMode === 'batch' && question.batchText && question.batchText.trim()) {
+    parseBatchOptions(survey.questions!.indexOf(question), false);
+  } else if (mode === 'batch' && oldMode === 'single') {
     if (question.options && question.options.length > 0) {
       question.batchText = question.options.map((o: any) => o.text).join('\n');
     }
