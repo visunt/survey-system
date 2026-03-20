@@ -283,3 +283,40 @@ export const publishSurvey = async (req: AuthRequest, res: Response) => {
     res.status(500).json({ error: 'Server error', details: (error as Error).message });
   }
 };
+
+export const reorderQuestions = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user!.id;
+    const { questionOrders } = req.body;
+    const surveyId = Array.isArray(id) ? id[0] : id;
+
+    const survey = await Survey.findByPk(surveyId);
+
+    if (!survey) {
+      return res.status(404).json({ error: 'Survey not found' });
+    }
+
+    if (survey.creatorId !== userId && req.user!.role !== 'admin') {
+      return res.status(403).json({ error: 'Not authorized' });
+    }
+
+    if (!Array.isArray(questionOrders)) {
+      return res.status(400).json({ error: 'Invalid questionOrders' });
+    }
+
+    // 批量更新题目的 orderIndex
+    for (const item of questionOrders) {
+      if (item.id && typeof item.orderIndex === 'number') {
+        await Question.update(
+          { orderIndex: item.orderIndex },
+          { where: { id: item.id, surveyId: surveyId } }
+        );
+      }
+    }
+
+    res.json({ message: 'Questions reordered successfully' });
+  } catch (error) {
+    res.status(500).json({ error: 'Server error', details: (error as Error).message });
+  }
+};

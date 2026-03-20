@@ -70,6 +70,9 @@ export const surveyAPI = {
   deleteSurvey: (id: string) => api.delete(`/surveys/${id}`),
 
   publishSurvey: (id: string) => api.patch(`/surveys/${id}/publish`),
+
+  reorderQuestions: (surveyId: string, questionOrders: Array<{ id: number; orderIndex: number }>) =>
+    api.patch(`/surveys/${surveyId}/questions/reorder`, { questionOrders }),
 };
 
 export default surveyAPI;

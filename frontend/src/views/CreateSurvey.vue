@@ -55,13 +55,22 @@
         </div>
 
         <div v-else class="questions-list">
-          <div
-            v-for="(question, index) in survey.questions"
-            :key="question.id"
-            class="question-item"
-            :class="{ 'is-expanded': expandedQuestions.has(question.id) }"
+          <draggable
+            v-model="survey.questions"
+            item-key="id"
+            handle=".drag-handle"
+            ghost-class="dragging"
+            @end="onDragEnd"
           >
-            <div class="question-header" @click="toggleQuestion(question.id)">
+            <template #item="{ element: question, index }">
+              <div
+                class="question-item"
+                :class="{ 'is-expanded': expandedQuestions.has(question.id) }"
+              >
+                <div class="drag-handle">
+                  <el-icon><Rank /></el-icon>
+                </div>
+                <div class="question-header" @click="toggleQuestion(question.id)">
               <div class="question-info">
                 <span class="question-number">{{ index + 1 }}.</span>
                 <el-input
@@ -113,17 +122,22 @@
                   <el-button type="danger" :icon="Delete" circle size="small" @click.stop="removeQuestion(index)" />
                 </el-tooltip>
               </el-button-group>
-            </div>
-          </div>
+              </div>
+            </template>
+          </draggable>
         </div>
       </el-card>
 
       <div class="actions">
         <el-button @click="goBack">取消</el-button>
+        <el-button @click="openPreview">预览</el-button>
         <el-button type="primary" @click="saveDraft" :loading="saving">保存草稿</el-button>
         <el-button type="success" @click="publishSurvey" :loading="publishing">发布问卷</el-button>
       </div>
     </el-form>
+
+    <!-- 预览弹窗 -->
+    <SurveyPreview v-model="showPreview" :survey-data="previewData" />
   </div>
 </template>
 
@@ -131,8 +145,10 @@
 import { ref, reactive, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { ElMessage } from 'element-plus';
-import { Delete, Plus, InfoFilled, Top, Bottom } from '@element-plus/icons-vue';
+import { Delete, Plus, InfoFilled, Top, Bottom, Rank } from '@element-plus/icons-vue';
+import draggable from 'vuedraggable';
 import { surveyAPI, type Survey, type Question, type QuestionOption } from '../api/survey';
+import SurveyPreview from '../components/SurveyPreview.vue';
 
 const router = useRouter();
 const route = useRoute();
@@ -141,6 +157,10 @@ const isEdit = ref(false);
 const saving = ref(false);
 const publishing = ref(false);
 const expandedQuestions = ref<Set<number>>(new Set());
+
+// 预览相关
+const showPreview = ref(false);
+const previewData = ref<Partial<Survey> | null>(null);
 
 const survey = reactive<Partial<Survey>>({
   title: '',
@@ -230,12 +250,34 @@ const changeInputMode = (question: any, mode: string) => {
 const moveQuestion = (index: number, direction: number) => {
   const newIndex = index + direction;
   if (newIndex < 0 || newIndex >= survey.questions!.length) return;
-  
+
   const questions = survey.questions!;
   [questions[index], questions[newIndex]] = [questions[newIndex], questions[index]];
   questions.forEach((q: any, i: number) => {
     q.orderIndex = i;
   });
+};
+
+const onDragEnd = async () => {
+  // 更新所有题目的 orderIndex
+  survey.questions!.forEach((q: any, i: number) => {
+    q.orderIndex = i;
+  });
+
+  // 如果是编辑模式，自动保存到后端
+  if (isEdit.value) {
+    try {
+      const questionOrders = survey.questions!.map((q: any) => ({
+        id: q.id,
+        orderIndex: q.orderIndex,
+      }));
+      await surveyAPI.reorderQuestions(route.params.id as string, questionOrders);
+      ElMessage.success('顺序已保存');
+    } catch (error: any) {
+      console.error('Failed to save question order:', error);
+      ElMessage.error('保存顺序失败');
+    }
+  }
 };
 
 const removeQuestion = (index: number) => {
@@ -322,6 +364,40 @@ const updateBatchTextFromOptions = (question: any) => {
   if (question.options && question.options.length > 0) {
     question.batchText = question.options.map((o: any) => o.text).join('\n');
   }
+};
+
+const openPreview = () => {
+  if (!survey.title?.trim()) {
+    ElMessage.warning('请输入问卷标题后再预览');
+    return;
+  }
+
+  // 深拷贝问卷数据用于预览
+  const previewSurvey = JSON.parse(JSON.stringify(survey));
+
+  // 解析所有题目的批量输入选项
+  previewSurvey.questions = previewSurvey.questions.map((q: any) => {
+    const needsOptions = ['single_choice', 'multiple_choice', 'dropdown_single', 'dropdown_multiple'].includes(q.type);
+    
+    if (needsOptions && q.inputMode === 'batch' && q.batchText) {
+      // 解析批量输入
+      const lines = q.batchText
+        .split('\n')
+        .map((line: string) => line.trim())
+        .filter((line: string) => line.length > 0);
+      
+      q.options = lines.map((text: string, index: number) => ({
+        id: -(Date.now() + index),
+        text,
+        orderIndex: index,
+      }));
+    }
+    
+    return q;
+  });
+
+  previewData.value = previewSurvey;
+  showPreview.value = true;
 };
 
 const saveDraft = async () => {
@@ -496,6 +572,7 @@ onMounted(() => {
   overflow: hidden;
   transition: box-shadow 0.3s;
   position: relative;
+  display: flex;
 }
 
 .question-item:hover {
@@ -504,6 +581,39 @@ onMounted(() => {
 
 .question-item.is-expanded {
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+
+.question-item.dragging {
+  opacity: 0.5;
+  transform: scale(1.02);
+  box-shadow: 0 8px 24px rgba(102, 126, 234, 0.3);
+}
+
+.drag-handle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  padding: 0;
+  cursor: grab;
+  color: #909399;
+  flex-shrink: 0;
+  transition: color 0.2s ease, background 0.2s ease;
+  border-right: 1px solid #f0f0f0;
+}
+
+.drag-handle:hover {
+  color: #667eea;
+  background: #f5f7fa;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+  color: #667eea;
+}
+
+.drag-handle .el-icon {
+  font-size: 18px;
 }
 
 .question-float-actions {

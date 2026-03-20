@@ -8,6 +8,7 @@ import {
   publishSurvey,
   getMySurveys,
   getMyResponses,
+  reorderQuestions,
 } from '../controllers/surveyController';
 import { authMiddleware, optionalAuth } from '../middleware/auth';
 
@@ -23,6 +24,7 @@ router.post('/', authMiddleware, createSurvey);
 router.put('/:id', authMiddleware, updateSurvey);
 router.delete('/:id', authMiddleware, deleteSurvey);
 router.patch('/:id/publish', authMiddleware, publishSurvey);
+router.patch('/:id/questions/reorder', authMiddleware, reorderQuestions);
 
 // Admin/Debug route (keep for now)
 router.get('/', getSurveys);
