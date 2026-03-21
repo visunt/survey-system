@@ -20,6 +20,7 @@
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
     "dotenv": "^17.3.1",
+    "exceljs": "^4.4.0",
     "express": "^5.2.1",
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.3",
@@ -27,6 +28,7 @@
     "mysql2": "^3.18.1",
     "nanoid": "^5.1.6",
     "nodemailer": "^8.0.1",
+    "pdfkit": "^0.15.2",
     "sequelize": "^6.37.7",
     "svg-captcha": "^1.4.0",
     "uuid": "^13.0.0"
@@ -37,6 +39,7 @@
     "@types/express": "^5.0.6",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/morgan": "^1.9.10",
+    "@types/pdfkit": "^0.13.5",
     "nodemon": "^3.1.14",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3"

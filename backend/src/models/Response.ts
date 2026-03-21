@@ -1,6 +1,7 @@
 import { DataTypes, Model, Op } from 'sequelize';
 import sequelize from '../config/database';
 import { ResponseAttributes } from '../types';
+import Answer from './Answer';
 
 class Response extends Model<ResponseAttributes> implements ResponseAttributes {
   public id!: number;
@@ -9,6 +10,7 @@ class Response extends Model<ResponseAttributes> implements ResponseAttributes {
   public deviceId?: string;
   public ipAddress?: string;
   public submittedAt!: Date;
+  public answers?: Answer[];
   public readonly createdAt!: Date;
   public readonly updatedAt!: Date;
 }

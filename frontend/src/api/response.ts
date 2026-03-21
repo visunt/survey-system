@@ -14,4 +14,14 @@ export const responseAPI = {
 
   getSurveyStatistics: (surveyId: string) =>
     api.get(`/surveys/${surveyId}/statistics`),
+
+  exportToExcel: (surveyId: string) =>
+    api.get(`/surveys/${surveyId}/export/excel`, {
+      responseType: 'blob',
+    }),
+
+  exportToPdf: (surveyId: string) =>
+    api.get(`/surveys/${surveyId}/export/pdf`, {
+      responseType: 'blob',
+    }),
 };

@@ -4,6 +4,20 @@
       <template #content>
         <h2>{{ survey?.title }} - 数据统计</h2>
       </template>
+      <template #extra>
+        <el-dropdown v-if="statistics.totalResponses > 0" @command="handleExport">
+          <el-button type="primary">
+            <el-icon class="el-icon--left"><Download /></el-icon>
+            导出数据
+          </el-button>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item command="excel">导出为 Excel</el-dropdown-item>
+              <el-dropdown-item command="pdf">导出为 PDF</el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
+      </template>
     </el-page-header>
 
     <el-empty v-if="loading" description="加载中..." />
@@ -100,6 +114,7 @@
 import { ref, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { ElMessage } from 'element-plus';
+import { Download } from '@element-plus/icons-vue';
 import { responseAPI } from '../api/response';
 import { surveyAPI, type Survey } from '../api/survey';
 
@@ -138,6 +153,96 @@ const formatDate = (date: string) => {
 
 const goBack = () => {
   router.back();
+};
+
+const handleExport = (command: string) => {
+  if (command === 'excel') {
+    exportToExcel();
+  } else if (command === 'pdf') {
+    exportToPDF();
+  }
+};
+
+const exportToExcel = async () => {
+  if (!survey.value || statistics.value.totalResponses === 0) {
+    ElMessage.warning('暂无数据可导出');
+    return;
+  }
+
+  try {
+    ElMessage.info('正在生成 Excel，请稍候...');
+    const id = route.params.id as string;
+    const response = await responseAPI.exportToExcel(id);
+
+    // 从响应头获取文件名
+    const contentDisposition = response.headers['content-disposition'];
+    let fileName = `${survey.value.title}_统计.xlsx`;
+    if (contentDisposition) {
+      const match = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+      if (match && match[1]) {
+        fileName = match[1].replace(/['"]/g, '');
+      }
+    }
+
+    // 创建 Blob 并下载
+    const blob = new Blob([response.data], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', fileName);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+
+    ElMessage.success('导出 Excel 成功');
+  } catch (error) {
+    console.error('Export Excel error:', error);
+    ElMessage.error('导出 Excel 失败');
+  }
+};
+
+const exportToPDF = async () => {
+  if (!survey.value || statistics.value.totalResponses === 0) {
+    ElMessage.warning('暂无数据可导出');
+    return;
+  }
+
+  try {
+    ElMessage.info('正在生成 PDF，请稍候...');
+    const id = route.params.id as string;
+    const response = await responseAPI.exportToPdf(id);
+
+    // 从响应头获取文件名
+    const contentDisposition = response.headers['content-disposition'];
+    let fileName = `${survey.value.title}_统计.pdf`;
+    if (contentDisposition) {
+      const match = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+      if (match && match[1]) {
+        fileName = match[1].replace(/['"]/g, '');
+      }
+    }
+
+    // 创建 Blob 并下载
+    const blob = new Blob([response.data], {
+      type: 'application/pdf',
+    });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', fileName);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+
+    ElMessage.success('导出 PDF 成功');
+  } catch (error) {
+    console.error('Export PDF error:', error);
+    ElMessage.error('导出 PDF 失败');
+  }
 };
 
 const loadResults = async () => {

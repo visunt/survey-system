@@ -3,6 +3,7 @@ import sequelize from '../config/database';
 import { QuestionAttributes, QuestionOptionAttributes, SkipLogic } from '../types';
 import Survey from './Survey';
 import QuestionOption from './QuestionOption';
+import Answer from './Answer';
 
 class Question extends Model<QuestionAttributes> implements QuestionAttributes {
   public id!: number;
@@ -13,12 +14,14 @@ class Question extends Model<QuestionAttributes> implements QuestionAttributes {
   public orderIndex!: number;
   public skipLogic?: SkipLogic;
   public options?: QuestionOptionAttributes[];
+  public answers?: Answer[];
   public readonly createdAt!: Date;
   public readonly updatedAt!: Date;
 
   public static associations: {
     survey: Association<Question, Survey>;
     options: Association<Question, QuestionOption>;
+    answers: Association<Question, Answer>;
   };
 }
 
