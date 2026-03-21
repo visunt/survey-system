@@ -1,28 +1,42 @@
-import { DataTypes, Model } from 'sequelize';
+import { Model, DataTypes } from 'sequelize';
 import sequelize from '../config/database';
-import { TemplateAttributes } from '../types';
 
-class SurveyTemplate extends Model<TemplateAttributes> implements TemplateAttributes {
-  public id!: string;
-  public title!: string;
-  public description?: string;
-  public category!: 'satisfaction' | 'event' | 'feedback' | 'research' | 'other';
-  public questions!: string; // JSON string storing questions data
-  public isSystem!: boolean;
-  public creatorId!: number;
+export interface SurveyTemplateAttributes {
+  id: number;
+  name: string;
+  description: string;
+  category: string;
+  icon: string;
+  questions: any;
+  usageCount: number;
+  isSystem: boolean;
+  creatorId?: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+class SurveyTemplate extends Model<SurveyTemplateAttributes> implements SurveyTemplateAttributes {
+  public id!: number;
+  public name!: string;
+  public description!: string;
+  public category!: string;
+  public icon!: string;
+  public questions!: any;
   public usageCount!: number;
-  public readonly createdAt!: Date;
-  public readonly updatedAt!: Date;
+  public isSystem!: boolean;
+  public creatorId?: number;
+  public createdAt!: Date;
+  public updatedAt!: Date;
 }
 
 SurveyTemplate.init(
   {
     id: {
-      type: DataTypes.STRING(12),
+      type: DataTypes.INTEGER,
+      autoIncrement: true,
       primaryKey: true,
-      defaultValue: 'temp-' + Date.now().toString(36),
     },
-    title: {
+    name: {
       type: DataTypes.STRING(200),
       allowNull: false,
     },
@@ -31,37 +45,42 @@ SurveyTemplate.init(
       allowNull: true,
     },
     category: {
-      type: DataTypes.ENUM(
-        'satisfaction',
-        'event',
-        'feedback',
-        'research',
-        'other'
-      ),
+      type: DataTypes.STRING(50),
       allowNull: false,
       defaultValue: 'other',
+    },
+    icon: {
+      type: DataTypes.STRING(50),
+      allowNull: false,
+      defaultValue: 'Document',
     },
     questions: {
       type: DataTypes.JSON,
       allowNull: false,
     },
+    usageCount: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 0,
+    },
     isSystem: {
       type: DataTypes.BOOLEAN,
-      defaultValue: false,
       allowNull: false,
+      defaultValue: true,
     },
     creatorId: {
       type: DataTypes.INTEGER,
-      allowNull: false,
-      references: {
-        model: 'users',
-        key: 'id',
-      },
+      allowNull: true,
     },
-    usageCount: {
-      type: DataTypes.INTEGER,
-      defaultValue: 0,
+    createdAt: {
+      type: DataTypes.DATE,
       allowNull: false,
+      defaultValue: DataTypes.NOW,
+    },
+    updatedAt: {
+      type: DataTypes.DATE,
+      allowNull: false,
+      defaultValue: DataTypes.NOW,
     },
   },
   {

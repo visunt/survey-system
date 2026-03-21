@@ -11,7 +11,7 @@ import passwordRoutes from './routes/passwordRoutes';
 import captchaRoutes from './routes/captchaRoutes';
 import exportRoutes from './routes/exportRoutes';
 import templateRoutes from './routes/templateRoutes';
-import { seedSystemTemplates } from './seedTemplates';
+import { initSystemTemplates } from './controllers/templateController';
 
 dotenv.config();
 
@@ -65,7 +65,7 @@ async function startServer() {
     console.log('Database models synchronized');
 
     // Seed system templates
-    await seedSystemTemplates();
+    await initSystemTemplates();
 
     app.listen(PORT, () => {
       console.log(`Server is running on port ${PORT}`);

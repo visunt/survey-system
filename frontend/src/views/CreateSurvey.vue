@@ -4,7 +4,19 @@
       <template #content>
         <h2>{{ isEdit ? '编辑问卷' : '创建问卷' }}</h2>
       </template>
+      <template #extra>
+        <el-button v-if="!isEdit" @click="showTemplateSelector = true">
+          <el-icon class="el-icon--left"><DocumentCopy /></el-icon>
+          从模板创建
+        </el-button>
+      </template>
     </el-page-header>
+
+    <!-- 模板选择器 -->
+    <TemplateSelector
+      v-model="showTemplateSelector"
+      @select="handleTemplateSelect"
+    />
 
     <el-form :model="survey" label-width="100px" class="survey-form" label-position="top">
       <el-card class="info-card">
@@ -223,12 +235,14 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
-import { ElMessage } from 'element-plus';
-import { Delete, Plus, InfoFilled, Top, Bottom, Rank, Star } from '@element-plus/icons-vue';
+import { ElMessage, ElMessageBox } from 'element-plus';
+import { Delete, Plus, InfoFilled, Top, Bottom, Rank, Star, DocumentCopy } from '@element-plus/icons-vue';
 import draggable from 'vuedraggable';
 import { surveyAPI, type Survey, type Question, type QuestionOption } from '../api/survey';
 import { templateAPI } from '../api/template';
 import SurveyPreview from '../components/SurveyPreview.vue';
+import TemplateSelector from '../components/TemplateSelector.vue';
+import type { Template } from '../api/template';
 
 const router = useRouter();
 const route = useRoute();
@@ -250,6 +264,56 @@ const templateForm = reactive({
   description: '',
   category: 'other' as 'satisfaction' | 'event' | 'feedback' | 'research' | 'other',
 });
+
+// 模板选择器
+const showTemplateSelector = ref(false);
+
+const handleTemplateSelect = (template: Template) => {
+  if (survey.questions && survey.questions.length > 0) {
+    ElMessageBox.confirm(
+      '使用模板将覆盖当前已添加的题目，是否继续？',
+      '提示',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning',
+      }
+    ).then(() => {
+      applyTemplate(template);
+    }).catch(() => {
+      // 用户取消
+    });
+  } else {
+    applyTemplate(template);
+  }
+};
+
+const applyTemplate = (template: Template) => {
+  // 设置问卷基本信息
+  survey.title = template.name;
+  survey.description = template.description || '';
+
+  // 转换模板题目为问卷题目
+  if (template.questions && template.questions.length > 0) {
+    survey.questions = template.questions.map((q: any, index: number) => ({
+      id: questionIdCounter--,
+      title: q.title,
+      type: q.type,
+      isRequired: q.isRequired,
+      orderIndex: index,
+      options: q.options || [],
+      inputMode: 'batch',
+      batchText: q.options?.map((o: any) => o.text).join('\n') || '',
+    }));
+    
+    // 展开所有题目
+    survey.questions.forEach((q: any) => {
+      expandedQuestions.value.add(q.id);
+    });
+  }
+
+  ElMessage.success(`已应用模板：${template.name}`);
+};
 
 const survey = reactive<Partial<Survey>>({
   title: '',
