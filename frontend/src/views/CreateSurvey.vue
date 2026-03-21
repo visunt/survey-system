@@ -71,57 +71,101 @@
                   <el-icon><Rank /></el-icon>
                 </div>
                 <div class="question-header" @click="toggleQuestion(question.id)">
-              <div class="question-info">
-                <span class="question-number">{{ index + 1 }}.</span>
-                <el-input
-                  v-model="question.title"
-                  placeholder="请输入题目内容"
-                  class="title-input-inline"
-                  @click.stop
-                />
-                <el-checkbox v-model="question.isRequired" size="small" @click.stop>必填</el-checkbox>
-                <el-tag size="small" type="info">{{ getQuestionTypeText(question.type) }}</el-tag>
-              </div>
-            </div>
-
-            <el-collapse-transition>
-              <div v-show="expandedQuestions.has(question.id)" class="question-body">
-                <div class="question-main-row">
-                  <div class="type-select-group">
-                    <el-radio-group v-model="question.type" @change="onQuestionTypeChange(question)" size="small">
-                      <el-radio-button value="single_choice">单选题</el-radio-button>
-                      <el-radio-button value="multiple_choice">多选题</el-radio-button>
-                      <el-radio-button value="dropdown_single">下拉单选</el-radio-button>
-                      <el-radio-button value="dropdown_multiple">下拉多选</el-radio-button>
-                      <el-radio-button value="text">文本题</el-radio-button>
-                      <el-radio-button value="textarea">文本域</el-radio-button>
-                      <el-radio-button value="rating">评分题</el-radio-button>
-                      <el-radio-button value="date">日期题</el-radio-button>
-                      <el-radio-button value="switch">开关题</el-radio-button>
-                    </el-radio-group>
+                  <div class="question-info">
+                    <span class="question-number">{{ index + 1 }}.</span>
+                    <el-input
+                      v-model="question.title"
+                      placeholder="请输入题目内容"
+                      class="title-input-inline"
+                      @click.stop
+                    />
+                    <el-checkbox v-model="question.isRequired" size="small" @click.stop>必填</el-checkbox>
+                    <el-tag size="small" type="info">{{ getQuestionTypeText(question.type) }}</el-tag>
                   </div>
                 </div>
 
-                </div>
-              </div>
-            </el-collapse-transition>
+                <el-collapse-transition>
+                  <div v-show="expandedQuestions.has(question.id)" class="question-body">
+                    <div class="question-main-row">
+                      <div class="type-select-group">
+                        <el-radio-group v-model="question.type" @change="onQuestionTypeChange(question)" size="small">
+                          <el-radio-button value="single_choice">单选题</el-radio-button>
+                          <el-radio-button value="multiple_choice">多选题</el-radio-button>
+                          <el-radio-button value="dropdown_single">下拉单选</el-radio-button>
+                          <el-radio-button value="dropdown_multiple">下拉多选</el-radio-button>
+                          <el-radio-button value="text">文本题</el-radio-button>
+                          <el-radio-button value="textarea">文本域</el-radio-button>
+                          <el-radio-button value="rating">评分题</el-radio-button>
+                          <el-radio-button value="date">日期题</el-radio-button>
+                          <el-radio-button value="switch">开关题</el-radio-button>
+                        </el-radio-group>
+                      </div>
+                    </div>
 
-            <!-- 悬浮操作按钮 -->
-            <div class="question-float-actions">
-              <el-button-group>
-                <el-tooltip content="上移" placement="top">
-                  <el-button type="primary" :icon="Top" circle size="small" @click.stop="moveQuestion(index, -1)" :disabled="index === 0" />
-                </el-tooltip>
-                <el-tooltip content="下移" placement="top">
-                  <el-button type="primary" :icon="Bottom" circle size="small" @click.stop="moveQuestion(index, 1)" :disabled="index === survey.questions!.length - 1" />
-                </el-tooltip>
-                <el-tooltip content="新增题目" placement="top">
-                  <el-button type="primary" :icon="Plus" circle size="small" @click.stop="insertQuestionAfter(index)" />
-                </el-tooltip>
-                <el-tooltip content="删除题目" placement="top">
-                  <el-button type="danger" :icon="Delete" circle size="small" @click.stop="removeQuestion(index)" />
-                </el-tooltip>
-              </el-button-group>
+                    <!-- 选项配置 -->
+                    <div v-if="['single_choice', 'multiple_choice', 'dropdown_single', 'dropdown_multiple'].includes(question.type)" class="options-config">
+                      <el-divider content-position="left">选项设置</el-divider>
+
+                      <div class="options-header">
+                        <el-radio-group v-model="question.inputMode" size="small">
+                          <el-radio-button label="batch">批量添加</el-radio-button>
+                          <el-radio-button label="single">逐个添加</el-radio-button>
+                        </el-radio-group>
+                      </div>
+
+                      <!-- 批量添加模式 -->
+                      <div v-if="question.inputMode === 'batch'" class="batch-mode">
+                        <el-input
+                          v-model="question.batchText"
+                          type="textarea"
+                          :rows="6"
+                          placeholder="请输入选项，每行一个选项&#10;例如：&#10;选项一&#10;选项二&#10;选项三"
+                          @blur="parseBatchOptions(index)"
+                        />
+                        <div class="batch-tips">
+                          <el-icon><InfoFilled /></el-icon>
+                          <span>每行输入一个选项，空行将被自动忽略</span>
+                        </div>
+                      </div>
+
+                      <!-- 逐个添加模式 -->
+                      <div v-else class="single-mode">
+                        <div v-for="(option, oIndex) in question.options" :key="oIndex" class="option-item">
+                          <span class="option-label">{{ String.fromCharCode(65 + oIndex) }}.</span>
+                          <el-input v-model="option.text" placeholder="请输入选项内容" class="option-input" />
+                          <el-button
+                            type="danger"
+                            :icon="Delete"
+                            circle
+                            size="small"
+                            @click="removeOption(index, oIndex)"
+                          />
+                        </div>
+                        <el-button type="primary" :icon="Plus" size="small" @click="addOption(index)">
+                          添加选项
+                        </el-button>
+                      </div>
+                    </div>
+                  </div>
+                </el-collapse-transition>
+
+                <!-- 悬浮操作按钮 -->
+                <div class="question-float-actions">
+                  <el-button-group>
+                    <el-tooltip content="上移" placement="top">
+                      <el-button type="primary" :icon="Top" circle size="small" @click.stop="moveQuestion(index, -1)" :disabled="index === 0" />
+                    </el-tooltip>
+                    <el-tooltip content="下移" placement="top">
+                      <el-button type="primary" :icon="Bottom" circle size="small" @click.stop="moveQuestion(index, 1)" :disabled="index === survey.questions!.length - 1" />
+                    </el-tooltip>
+                    <el-tooltip content="新增题目" placement="top">
+                      <el-button type="primary" :icon="Plus" circle size="small" @click.stop="insertQuestionAfter(index)" />
+                    </el-tooltip>
+                    <el-tooltip content="删除题目" placement="top">
+                      <el-button type="danger" :icon="Delete" circle size="small" @click.stop="removeQuestion(index)" />
+                    </el-tooltip>
+                  </el-button-group>
+                </div>
               </div>
             </template>
           </draggable>
