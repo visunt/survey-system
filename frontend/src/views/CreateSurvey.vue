@@ -175,6 +175,7 @@
       <div class="actions">
         <el-button @click="goBack">取消</el-button>
         <el-button @click="openPreview">预览</el-button>
+        <el-button @click="saveAsTemplate" :loading="savingAsTemplate" :icon="Star">保存为模板</el-button>
         <el-button type="primary" @click="saveDraft" :loading="saving">保存草稿</el-button>
         <el-button type="success" @click="publishSurvey" :loading="publishing">发布问卷</el-button>
       </div>
@@ -182,6 +183,40 @@
 
     <!-- 预览弹窗 -->
     <SurveyPreview v-model="showPreview" :survey-data="previewData" />
+
+    <!-- 保存为模板弹窗 -->
+    <el-dialog
+      v-model="showSaveTemplateDialog"
+      title="保存为模板"
+      width="500px"
+    >
+      <el-form :model="templateForm" label-width="80px">
+        <el-form-item label="模板标题">
+          <el-input v-model="templateForm.title" placeholder="请输入模板标题" />
+        </el-form-item>
+        <el-form-item label="模板描述">
+          <el-input
+            v-model="templateForm.description"
+            type="textarea"
+            :rows="3"
+            placeholder="请输入模板描述"
+          />
+        </el-form-item>
+        <el-form-item label="分类">
+          <el-select v-model="templateForm.category" placeholder="请选择分类" style="width: 100%">
+            <el-option label="满意度调查" value="satisfaction" />
+            <el-option label="活动报名" value="event" />
+            <el-option label="产品反馈" value="feedback" />
+            <el-option label="调研问卷" value="research" />
+            <el-option label="其他" value="other" />
+          </el-select>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showSaveTemplateDialog = false">取消</el-button>
+        <el-button type="primary" @click="confirmSaveTemplate" :loading="savingAsTemplate">保存</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -189,9 +224,10 @@
 import { ref, reactive, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { ElMessage } from 'element-plus';
-import { Delete, Plus, InfoFilled, Top, Bottom, Rank } from '@element-plus/icons-vue';
+import { Delete, Plus, InfoFilled, Top, Bottom, Rank, Star } from '@element-plus/icons-vue';
 import draggable from 'vuedraggable';
 import { surveyAPI, type Survey, type Question, type QuestionOption } from '../api/survey';
+import { templateAPI } from '../api/template';
 import SurveyPreview from '../components/SurveyPreview.vue';
 
 const router = useRouter();
@@ -200,11 +236,20 @@ const route = useRoute();
 const isEdit = ref(false);
 const saving = ref(false);
 const publishing = ref(false);
+const savingAsTemplate = ref(false);
 const expandedQuestions = ref<Set<number>>(new Set());
 
 // 预览相关
 const showPreview = ref(false);
 const previewData = ref<Partial<Survey> | null>(null);
+
+// 保存为模板相关
+const showSaveTemplateDialog = ref(false);
+const templateForm = reactive({
+  title: '',
+  description: '',
+  category: 'other' as 'satisfaction' | 'event' | 'feedback' | 'research' | 'other',
+});
 
 const survey = reactive<Partial<Survey>>({
   title: '',
@@ -518,6 +563,73 @@ const publishSurvey = async () => {
     ElMessage.error(error.response?.data?.error || '发布失败');
   } finally {
     publishing.value = false;
+  }
+};
+
+const saveAsTemplate = () => {
+  if (!survey.title?.trim()) {
+    ElMessage.warning('请输入问卷标题');
+    return;
+  }
+
+  if (!survey.questions || survey.questions.length === 0) {
+    ElMessage.warning('请至少添加一道题目');
+    return;
+  }
+
+  // 填充默认值
+  templateForm.title = survey.title;
+  templateForm.description = survey.description || '';
+  templateForm.category = 'other';
+
+  showSaveTemplateDialog.value = true;
+};
+
+const confirmSaveTemplate = async () => {
+  if (!templateForm.title?.trim()) {
+    ElMessage.warning('请输入模板标题');
+    return;
+  }
+
+  // 准备模板数据
+  const templateQuestions = (survey.questions as any[]).map((q: any) => {
+    // 处理批量模式下的选项
+    let options = q.options;
+    if (q.inputMode === 'batch' && q.batchText) {
+      const lines = q.batchText
+        .split('\n')
+        .map((line: string) => line.trim())
+        .filter((line: string) => line.length > 0);
+      options = lines.map((text: string, index: number) => ({
+        text,
+        orderIndex: index,
+      }));
+    }
+
+    return {
+      title: q.title,
+      type: q.type,
+      isRequired: q.isRequired,
+      orderIndex: q.orderIndex,
+      options,
+    };
+  });
+
+  try {
+    savingAsTemplate.value = true;
+    await templateAPI.createTemplate({
+      title: templateForm.title,
+      description: templateForm.description,
+      category: templateForm.category,
+      questions: templateQuestions,
+    });
+    ElMessage.success('保存为模板成功');
+    showSaveTemplateDialog.value = false;
+  } catch (error: any) {
+    console.error('Failed to save as template:', error);
+    ElMessage.error(error.response?.data?.error || '保存模板失败');
+  } finally {
+    savingAsTemplate.value = false;
   }
 };
 

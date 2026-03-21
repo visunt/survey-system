@@ -13,10 +13,16 @@
             <el-option label="草稿" value="draft" />
             <el-option label="已关闭" value="closed" />
           </el-select>
-          <el-button type="primary" @click="router.push('/create-survey')">
-            <el-icon><Plus /></el-icon>
-            创建问卷
-          </el-button>
+          <div class="action-buttons">
+            <el-button @click="router.push('/templates')">
+              <el-icon><Document /></el-icon>
+              从模板创建
+            </el-button>
+            <el-button type="primary" @click="router.push('/create-survey')">
+              <el-icon><Plus /></el-icon>
+              创建问卷
+            </el-button>
+          </div>
         </div>
 
         <el-empty v-if="!loading && createdSurveys.length === 0" description="暂无创建的问卷">
@@ -78,7 +84,7 @@
 import { ref, computed, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { Plus, Clock } from '@element-plus/icons-vue';
+import { Plus, Clock, Document } from '@element-plus/icons-vue';
 import { surveyAPI, type Survey, type SurveyResponse } from '../api/survey';
 import { useAuthStore } from '../stores/auth';
 
@@ -248,6 +254,11 @@ onMounted(() => {
 
 .status-filter {
   width: 200px;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 12px;
 }
 
 .survey-grid {

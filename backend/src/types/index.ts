@@ -82,6 +82,19 @@ export interface AnswerAttributes {
   updatedAt?: Date;
 }
 
+export interface TemplateAttributes {
+  id?: string;
+  title: string;
+  description?: string;
+  category: 'satisfaction' | 'event' | 'feedback' | 'research' | 'other';
+  questions: any; // JSON storing questions data
+  isSystem: boolean;
+  creatorId: number;
+  usageCount: number;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
 export interface AuthRequest extends Request {
   user?: {
     id: number;

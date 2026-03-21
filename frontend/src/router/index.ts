@@ -52,6 +52,12 @@ const routes: RouteRecordRaw[] = [
     component: () => import('../views/EditSurvey.vue'),
     meta: { requiresAuth: true },
   },
+  {
+    path: '/templates',
+    name: 'TemplateLibrary',
+    component: () => import('../views/TemplateLibrary.vue'),
+    meta: { requiresAuth: true },
+  },
 ];
 
 const router = createRouter({

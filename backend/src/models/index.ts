@@ -6,10 +6,14 @@ import QuestionOption from './QuestionOption';
 import Response from './Response';
 import Answer from './Answer';
 import PasswordReset from './PasswordReset';
+import SurveyTemplate from './SurveyTemplate';
 
 // Define associations
 User.hasMany(Survey, { foreignKey: 'creatorId', as: 'surveys' });
 Survey.belongsTo(User, { foreignKey: 'creatorId', as: 'creator' });
+
+User.hasMany(SurveyTemplate, { foreignKey: 'creatorId', as: 'templates' });
+SurveyTemplate.belongsTo(User, { foreignKey: 'creatorId', as: 'creator' });
 
 Survey.hasMany(Question, { foreignKey: 'surveyId', as: 'questions', onDelete: 'CASCADE' });
 Question.belongsTo(Survey, { foreignKey: 'surveyId', as: 'survey' });
@@ -38,4 +42,5 @@ export {
   Response,
   Answer,
   PasswordReset,
+  SurveyTemplate,
 };

@@ -10,6 +10,8 @@ import responseRoutes from './routes/responseRoutes';
 import passwordRoutes from './routes/passwordRoutes';
 import captchaRoutes from './routes/captchaRoutes';
 import exportRoutes from './routes/exportRoutes';
+import templateRoutes from './routes/templateRoutes';
+import { seedSystemTemplates } from './seedTemplates';
 
 dotenv.config();
 
@@ -31,6 +33,7 @@ app.use('/api', responseRoutes);
 app.use('/api/password', passwordRoutes);
 app.use('/api/captcha', captchaRoutes);
 app.use('/api', exportRoutes);
+app.use('/api/templates', templateRoutes);
 
 // Health check
 app.get('/health', (req, res) => {
@@ -60,6 +63,9 @@ async function startServer() {
     // Sync database models (create tables if they don't exist)
     await sequelize.sync({ alter: true });
     console.log('Database models synchronized');
+
+    // Seed system templates
+    await seedSystemTemplates();
 
     app.listen(PORT, () => {
       console.log(`Server is running on port ${PORT}`);
