@@ -110,12 +110,23 @@
                 <div class="question-header" @click="toggleQuestion(question.id)">
                   <div class="question-info">
                     <span class="question-number">{{ index + 1 }}.</span>
-                    <el-input
-                      v-model="question.title"
-                      placeholder="请输入题目内容"
-                      class="title-input-inline"
-                      @click.stop
-                    />
+                    <div class="title-with-reference">
+                      <el-input
+                        v-model="question.title"
+                        placeholder="请输入题目内容"
+                        class="title-input-inline"
+                        @click.stop
+                      />
+                      <el-button
+                        type="primary"
+                        link
+                        size="small"
+                        @click.stop="openReferenceDialog(index, 'title')"
+                        :disabled="index === 0"
+                      >
+                        插入引用
+                      </el-button>
+                    </div>
                     <el-checkbox v-model="question.isRequired" size="small" @click.stop>必填</el-checkbox>
                     <el-tag size="small" type="info">{{ getQuestionTypeText(question.type) }}</el-tag>
                   </div>
@@ -123,6 +134,39 @@
 
                 <el-collapse-transition>
                   <div v-show="expandedQuestions.has(question.id)" class="question-body">
+                    <!-- 题目描述（带引用功能） -->
+                    <div class="question-description-row">
+                      <div class="description-with-reference">
+                        <el-input
+                          v-model="question.description"
+                          type="textarea"
+                          :rows="2"
+                          placeholder="题目描述（可选，支持插入引用）"
+                          class="description-input"
+                        />
+                        <el-button
+                          type="primary"
+                          link
+                          size="small"
+                          @click="openReferenceDialog(index, 'description')"
+                          :disabled="index === 0"
+                        >
+                          插入引用
+                        </el-button>
+                      </div>
+                      <div class="reference-tags" v-if="extractReferences(question.title + ' ' + (question.description || '')).length > 0">
+                        <el-tag
+                          v-for="ref in extractReferences(question.title + ' ' + (question.description || ''))"
+                          :key="ref"
+                          type="warning"
+                          size="small"
+                          class="reference-tag"
+                        >
+                          {{ getReferenceLabel(ref) }}
+                        </el-tag>
+                      </div>
+                    </div>
+                    
                     <div class="question-main-row">
                       <div class="type-select-group">
                         <el-radio-group v-model="question.type" @change="onQuestionTypeChange(question)" size="small">
@@ -496,6 +540,36 @@
 
     <!-- 分享弹窗 -->
     <ShareDialog v-model="shareDialogVisible" :survey="survey as Survey" />
+    
+    <!-- 插入引用弹窗 -->
+    <el-dialog
+      v-model="showReferenceDialog"
+      title="插入题目引用"
+      width="500px"
+    >
+      <div class="reference-dialog-content">
+        <el-select
+          v-model="selectedReferenceQuestion"
+          placeholder="选择要引用的前序题目"
+          style="width: 100%"
+        >
+          <el-option
+            v-for="prevQ in getPreviousQuestions(currentReferenceQuestionIndex)"
+            :key="prevQ.id"
+            :label="`第${getQuestionIndex(prevQ.id) + 1}题: ${prevQ.title || '(未填写题目)'}`"
+            :value="prevQ.id"
+          />
+        </el-select>
+        <div class="reference-tips">
+          <el-icon><InfoFilled /></el-icon>
+          <span>引用将在填写时显示为该题目的实际答案，未填写时显示为 ___</span>
+        </div>
+      </div>
+      <template #footer>
+        <el-button @click="showReferenceDialog = false">取消</el-button>
+        <el-button type="primary" @click="insertReference" :disabled="!selectedReferenceQuestion">插入</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -537,6 +611,12 @@ const showSaveTemplateDialog = ref(false);
 
 // 分享相关
 const shareDialogVisible = ref(false);
+
+// 引用相关
+const showReferenceDialog = ref(false);
+const currentReferenceQuestionIndex = ref(0);
+const currentReferenceField = ref<'title' | 'description'>('title');
+const selectedReferenceQuestion = ref<number | undefined>(undefined);
 
 const templateForm = reactive({
   title: '',
@@ -920,6 +1000,54 @@ const removeDisplayCondition = (questionIndex: number, conditionIndex: number) =
 };
 // ============ 显示逻辑相关结束 ============
 
+// ============ 题目引用相关 ============
+const openReferenceDialog = (questionIndex: number, field: 'title' | 'description') => {
+  currentReferenceQuestionIndex.value = questionIndex;
+  currentReferenceField.value = field;
+  selectedReferenceQuestion.value = undefined;
+  showReferenceDialog.value = true;
+};
+
+const insertReference = () => {
+  if (!selectedReferenceQuestion.value) return;
+  
+  const question = (survey.questions as any[])[currentReferenceQuestionIndex.value];
+  const reference = `{{question_${selectedReferenceQuestion.value}}}`;
+  
+  if (currentReferenceField.value === 'title') {
+    question.title = (question.title || '') + reference;
+  } else {
+    question.description = (question.description || '') + reference;
+  }
+  
+  showReferenceDialog.value = false;
+  ElMessage.success('引用已插入');
+};
+
+const extractReferences = (text: string): string[] => {
+  const matches = text.match(/\{\{question_\d+\}\}/g) || [];
+  return [...new Set(matches)];
+};
+
+const getQuestionIndex = (questionId: number): number => {
+  return (survey.questions as any[] || []).findIndex(q => q.id === questionId);
+};
+
+const getReferenceLabel = (reference: string): string => {
+  const match = reference.match(/\{\{question_(\d+)\}\}/);
+  if (!match) return reference;
+  
+  const questionId = parseInt(match[1]);
+  const questionIndex = getQuestionIndex(questionId);
+  const question = (survey.questions as any[])[questionIndex];
+  
+  if (question) {
+    return `引用: 第${questionIndex + 1}题`;
+  }
+  return reference;
+};
+// ============ 题目引用相关结束 ============
+
 const toggleQuestion = (questionId: number) => {
   if (expandedQuestions.value.has(questionId)) {
     expandedQuestions.value.delete(questionId);
@@ -932,6 +1060,7 @@ const addQuestion = () => {
   const newQuestion: any = {
     id: questionIdCounter--,
     title: '',
+    description: '',
     type: 'single_choice',
     isRequired: true,
     orderIndex: survey.questions!.length,
@@ -1026,6 +1155,7 @@ const insertQuestionAfter = (index: number) => {
   const newQuestion: any = {
     id: questionIdCounter--,
     title: '',
+    description: '',
     type: 'single_choice',
     isRequired: true,
     orderIndex: index + 1,
@@ -1616,6 +1746,40 @@ onUnmounted(() => {
   align-items: center;
 }
 
+.title-with-reference {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+}
+
+.description-with-reference {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.description-input {
+  flex: 1;
+}
+
+.reference-tags {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.reference-tag {
+  font-size: 12px;
+}
+
+.question-description-row {
+  margin-bottom: 16px;
+}
+
 .title-input-inline :deep(.el-checkbox) {
   margin-left: 8px;
   flex-shrink: 0;
@@ -1797,6 +1961,20 @@ onUnmounted(() => {
 
 .rule-config {
   margin-top: 8px;
+}
+
+.reference-dialog-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.reference-tips {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #909399;
+  font-size: 12px;
 }
 
 .actions {

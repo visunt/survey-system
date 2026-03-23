@@ -45,8 +45,11 @@
         <template #header>
           <div class="question-header">
             <span class="question-number">{{ index + 1 }}.</span>
-            <span class="question-title">{{ question.title }}</span>
+            <span class="question-title" v-html="resolveQuestionReferences(question.title)"></span>
             <el-tag v-if="question.isRequired" type="danger" size="small">必填</el-tag>
+          </div>
+          <div v-if="question.description" class="question-description">
+            <span v-html="resolveQuestionReferences(question.description)"></span>
           </div>
         </template>
 
@@ -330,6 +333,52 @@ const visibleQuestions = computed(() => {
     return evaluateDisplayLogic(question);
   });
 });
+
+// 解析题目引用
+const resolveQuestionReferences = (text: string): string => {
+  if (!text) return '';
+  
+  return text.replace(/\{\{question_(\d+)\}\}/g, (match, questionId) => {
+    const id = parseInt(questionId);
+    const answer = answers.value[id];
+    const multiAnswer = multiAnswers.value[id];
+    
+    // 找到引用的题目
+    const referencedQuestion = sortedQuestions.value.find(q => q.id === id);
+    
+    if (!referencedQuestion) {
+      return '<span class="reference-placeholder">___</span>';
+    }
+    
+    let displayValue: string;
+    let hasValue = false;
+    
+    // 处理不同题型的答案显示
+    if (referencedQuestion.type === 'switch') {
+      // 开关题显示"是"/"否"
+      if (answer !== undefined) {
+        displayValue = answer ? '是' : '否';
+        hasValue = true;
+      }
+    } else if (referencedQuestion.type === 'multiple_choice' || referencedQuestion.type === 'dropdown_multiple') {
+      // 多选题显示逗号分隔的选项文本
+      if (multiAnswer && multiAnswer.length > 0) {
+        displayValue = multiAnswer.join(', ');
+        hasValue = true;
+      }
+    } else if (answer !== undefined && answer !== null && answer !== '') {
+      // 其他题型直接显示答案值
+      displayValue = String(answer);
+      hasValue = true;
+    }
+    
+    if (hasValue) {
+      return `<span class="reference-value">${displayValue!}</span>`;
+    } else {
+      return '<span class="reference-placeholder">___</span>';
+    }
+  });
+};
 
 // 进度计算
 const totalCount = computed(() => visibleQuestions.value.length);
@@ -617,6 +666,35 @@ onMounted(() => {
 .question-title {
   flex: 1;
   font-weight: 500;
+}
+
+.question-description {
+  margin-top: 8px;
+  font-size: 14px;
+  color: #606266;
+  line-height: 1.6;
+}
+
+.question-title :deep(.reference-value),
+.question-description :deep(.reference-value) {
+  display: inline-block;
+  padding: 2px 8px;
+  background: #f0f9ff;
+  border-radius: 4px;
+  color: #409eff;
+  font-weight: 500;
+  margin: 0 2px;
+}
+
+.question-title :deep(.reference-placeholder),
+.question-description :deep(.reference-placeholder) {
+  display: inline-block;
+  padding: 2px 8px;
+  background: #f5f7fa;
+  border-radius: 4px;
+  color: #909399;
+  font-style: italic;
+  margin: 0 2px;
 }
 
 .option-group {
