@@ -91,6 +91,23 @@
 
           <!-- 单选题和多选题 -->
           <div v-if="stat.options" class="options-chart">
+            <!-- 图表切换按钮 -->
+            <div class="chart-controls">
+              <el-button-group>
+                <el-button :type="chartTypes[stat.id] === 'pie' || !chartTypes[stat.id] ? 'primary' : ''" size="small" @click="toggleChartType(stat.id, stat)">
+                  <el-icon><PieChart /></el-icon> 饼图
+                </el-button>
+                <el-button :type="chartTypes[stat.id] === 'bar' ? 'primary' : ''" size="small" @click="toggleChartType(stat.id, stat)">
+                  <el-icon><Histogram /></el-icon> 柱状图
+                </el-button>
+              </el-button-group>
+              <el-button size="small" @click="downloadChart(stat.id, stat.title)">
+                <el-icon><Download /></el-icon> 下载图表
+              </el-button>
+            </div>
+            <!-- ECharts 图表容器 -->
+            <div :id="`chart-${stat.id}`" class="chart-container" style="width: 100%; height: 300px;"></div>
+            <!-- 原有进度条保留作为数据详情 -->
             <div v-for="option in stat.options" :key="option.text" class="option-bar">
               <div class="option-text">{{ option.text }}</div>
               <div class="option-stats">
@@ -138,10 +155,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, nextTick, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { ElMessage } from 'element-plus';
-import { Download, Calendar } from '@element-plus/icons-vue';
+import { Download, Calendar, PieChart, DataLine, BarChart } from '@element-plus/icons-vue';
+import * as echarts from 'echarts';
 import { responseAPI } from '../api/response';
 import { surveyAPI, type Survey } from '../api/survey';
 
@@ -156,6 +174,8 @@ const statistics = ref<any>({
 });
 const loading = ref(true);
 const dateRange = ref<[string, string] | null>(null);
+const chartInstances = ref<Record<number, echarts.ECharts>>({});
+const chartTypes = ref<Record<number, 'pie' | 'bar'>>({});
 
 // 日期快捷选项
 const dateShortcuts = [
@@ -196,8 +216,150 @@ const getQuestionTypeText = (type: string) => {
     textarea: '文本域',
     rating: '评分题',
     date: '日期题',
+    nps: 'NPS评分',
+    ranking: '排序题',
+    matrix: '矩阵题',
+    signature: '签名题',
   };
   return texts[type] || type;
+};
+
+// 初始化图表
+const initChart = (statId: number, stat: any, type: 'pie' | 'bar' = 'pie') => {
+  nextTick(() => {
+    const container = document.getElementById(`chart-${statId}`);
+    if (!container || !stat.options) return;
+
+    if (chartInstances.value[statId]) {
+      chartInstances.value[statId].dispose();
+    }
+
+    const chart = echarts.init(container);
+    chartInstances.value[statId] = chart;
+
+    const chartData = stat.options.map((opt: any) => ({
+      name: opt.text,
+      value: opt.count
+    }));
+
+    if (type === 'pie') {
+      chart.setOption({
+        tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
+        legend: { orient: 'vertical', right: 10, top: 'center' },
+        series: [{
+          type: 'pie',
+          radius: ['40%', '70%'],
+          itemStyle: { borderRadius: 10, borderColor: '#fff', borderWidth: 2 },
+          label: { show: true, formatter: '{b}: {d}%' },
+          data: chartData
+        }]
+      });
+    } else {
+      chart.setOption({
+        tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+        grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+        xAxis: { type: 'category', data: stat.options.map((opt: any) => opt.text) },
+        yAxis: { type: 'value' },
+        series: [{
+          type: 'bar',
+          data: stat.options.map((opt: any) => opt.count),
+          itemStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+            { offset: 0, color: '#667eea' }, { offset: 1, color: '#764ba2' }
+          ])},
+          label: { show: true, position: 'top' }
+        }]
+      });
+    }
+    window.addEventListener('resize', () => chart.resize());
+  });
+};
+
+// 切换图表类型
+const toggleChartType = (statId: number, stat: any) => {
+  const currentType = chartTypes.value[statId] || 'pie';
+  const newType = currentType === 'pie' ? 'bar' : 'pie';
+  chartTypes.value[statId] = newType;
+  initChart(statId, stat, newType);
+};
+
+// 下载图表
+const downloadChart = (statId: number, title: string) => {
+  const chart = chartInstances.value[statId];
+  if (!chart) return;
+  const url = chart.getDataURL({ type: 'png', pixelRatio: 2, backgroundColor: '#fff' });
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `${title}.png`;
+  link.click();
+};
+
+// 初始化评分题图表
+const initRatingChart = (statId: number, stat: any) => {
+  nextTick(() => {
+    const container = document.getElementById(`chart-${statId}`);
+    if (!container || !stat.distribution) return;
+    if (chartInstances.value[statId]) chartInstances.value[statId].dispose();
+
+    const chart = echarts.init(container);
+    chartInstances.value[statId] = chart;
+
+    const ratings = Object.keys(stat.distribution).sort();
+    const counts = ratings.map(r => stat.distribution[r]);
+
+    chart.setOption({
+      tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+      grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+      xAxis: { type: 'category', data: ratings.map(r => `${r}星`) },
+      yAxis: { type: 'value' },
+      series: [{
+        type: 'bar',
+        data: counts,
+        itemStyle: { color: '#667eea' },
+        label: { show: true, position: 'top' }
+      }]
+    });
+    window.addEventListener('resize', () => chart.resize());
+  });
+};
+
+// 初始化 NPS 图表
+const initNpsChart = (statId: number, stat: any) => {
+  nextTick(() => {
+    const container = document.getElementById(`chart-${statId}`);
+    if (!container) return;
+    if (chartInstances.value[statId]) chartInstances.value[statId].dispose();
+
+    const chart = echarts.init(container);
+    chartInstances.value[statId] = chart;
+
+    const distribution: Record<number, number> = {};
+    for (let i = 0; i <= 10; i++) distribution[i] = 0;
+    if (stat.answers) {
+      stat.answers.forEach((ans: string) => {
+        const score = parseInt(ans);
+        if (!isNaN(score) && score >= 0 && score <= 10) distribution[score]++;
+      });
+    }
+
+    const scores = Object.keys(distribution).map(Number);
+    const counts = scores.map(s => distribution[s]);
+
+    chart.setOption({
+      tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+      grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+      xAxis: { type: 'category', data: scores },
+      yAxis: { type: 'value' },
+      series: [{
+        type: 'bar',
+        data: counts.map((count, idx) => ({
+          value: count,
+          itemStyle: { color: idx <= 6 ? '#f56c6c' : idx <= 8 ? '#e6a23c' : '#67c23a' }
+        })),
+        label: { show: true, position: 'top' }
+      }]
+    });
+    window.addEventListener('resize', () => chart.resize());
+  });
 };
 
 const getBarColor = (percentage: number) => {
@@ -328,6 +490,19 @@ const loadResults = async (startDate?: string, endDate?: string) => {
 
     survey.value = surveyResponse.data;
     statistics.value = statsResponse.data;
+
+    // 初始化图表
+    nextTick(() => {
+      statistics.value.statistics.forEach((stat: any) => {
+        if (stat.options) {
+          initChart(stat.id, stat, 'pie');
+        } else if (stat.distribution && stat.type === 'rating') {
+          initRatingChart(stat.id, stat);
+        } else if (stat.type === 'nps') {
+          initNpsChart(stat.id, stat);
+        }
+      });
+    });
   } catch (error) {
     console.error('Failed to load results:', error);
     ElMessage.error('加载统计数据失败');
