@@ -47,6 +47,7 @@ export interface ValidationRule {
 export interface Question {
   id?: number;
   title: string;
+  description?: string;
   type: 'single_choice' | 'multiple_choice' | 'text' | 'textarea' | 'rating' | 'date' | 'dropdown_single' | 'dropdown_multiple' | 'switch';
   isRequired: boolean;
   orderIndex: number;
@@ -65,6 +66,8 @@ export interface Survey {
   startDate?: string;
   endDate?: string;
   deadline?: string;
+  responseLimit?: number;
+  maxResponsesPerUser: number;
   allowAnonymous: boolean;
   requireLogin: boolean;
   limitByDevice?: boolean;

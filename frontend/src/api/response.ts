@@ -5,6 +5,15 @@ export interface Answer {
   answer: string;
 }
 
+export interface ResponseLimitCheck {
+  canSubmit: boolean;
+  reason?: string;
+  currentCount: number;
+  limit?: number;
+  userResponseCount: number;
+  maxResponsesPerUser: number;
+}
+
 export const responseAPI = {
   submitResponse: (surveyId: string, answers: Answer[], deviceId?: string) =>
     api.post(`/surveys/${surveyId}/responses`, { answers, deviceId }),
@@ -14,6 +23,9 @@ export const responseAPI = {
 
   getSurveyStatistics: (surveyId: string, params?: { startDate?: string; endDate?: string }) =>
     api.get(`/surveys/${surveyId}/statistics`, { params }),
+
+  checkResponseLimit: (surveyId: string) =>
+    api.get<ResponseLimitCheck>(`/surveys/${surveyId}/responses/check-limit`),
 
   exportToExcel: (surveyId: string, params?: { startDate?: string; endDate?: string }) =>
     api.get(`/surveys/${surveyId}/export/excel`, {

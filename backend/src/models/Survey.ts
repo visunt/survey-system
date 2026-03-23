@@ -12,6 +12,8 @@ class Survey extends Model<SurveyAttributes> implements SurveyAttributes {
   public startDate?: Date;
   public endDate?: Date;
   public deadline?: Date;
+  public responseLimit?: number;
+  public maxResponsesPerUser!: number;
   public allowAnonymous!: boolean;
   public requireLogin!: boolean;
   public limitByDevice!: boolean;
@@ -58,6 +60,17 @@ Survey.init(
     deadline: {
       type: DataTypes.DATE,
       allowNull: true,
+    },
+    responseLimit: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      comment: '回收数量上限，NULL表示无限制',
+    },
+    maxResponsesPerUser: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 1,
+      comment: '每人限填次数，0表示不限制',
     },
     allowAnonymous: {
       type: DataTypes.BOOLEAN,

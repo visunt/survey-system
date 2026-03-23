@@ -40,6 +40,21 @@
       </template>
     </el-empty>
 
+    <el-empty v-else-if="limitCheck && !limitCheck.canSubmit" :description="limitCheck.reason">
+      <template #description>
+        <div class="expired-message">
+          <el-icon size="48" color="#f56c6c"><WarningFilled /></el-icon>
+          <p>{{ limitCheck.reason }}</p>
+          <p class="expired-time" v-if="limitCheck.limit">
+            回收上限：{{ limitCheck.limit }} 份（当前已回收 {{ limitCheck.currentCount }} 份）
+          </p>
+          <p class="expired-time" v-else-if="limitCheck.maxResponsesPerUser > 0">
+            您已填写 {{ limitCheck.userResponseCount }} 次，上限 {{ limitCheck.maxResponsesPerUser }} 次
+          </p>
+        </div>
+      </template>
+    </el-empty>
+
     <el-form v-else ref="formRef" :model="answers" label-position="top" class="survey-form">
       <el-card v-for="(question, index) in visibleQuestions" :key="question.id" class="question-card">
         <template #header>
@@ -186,7 +201,7 @@ import { ElMessage } from 'element-plus';
 import { CircleClose, WarningFilled } from '@element-plus/icons-vue';
 import type { FormInstance } from 'element-plus';
 import { surveyAPI, type Survey, type Question, type DisplayCondition } from '../api/survey';
-import { responseAPI, type Answer } from '../api/response';
+import { responseAPI, type Answer, type ResponseLimitCheck } from '../api/response';
 import { useAuthStore } from '../stores/auth';
 import { validateAllRules } from '../utils/validation';
 
@@ -198,6 +213,7 @@ const survey = ref<Survey | null>(null);
 const loading = ref(true);
 const submitting = ref(false);
 const formRef = ref<FormInstance>();
+const limitCheck = ref<ResponseLimitCheck | null>(null);
 
 const answers = ref<Record<number, string | boolean>>({});
 const multiAnswers = ref<Record<number, string[]>>({});
@@ -586,6 +602,17 @@ const loadSurvey = async () => {
         path: '/login',
         query: { redirect: route.fullPath },
       });
+      return;
+    }
+
+    // 检查填写限制
+    if (survey.value.status === 'published') {
+      try {
+        const limitResponse = await responseAPI.checkResponseLimit(id);
+        limitCheck.value = limitResponse.data;
+      } catch (error) {
+        console.error('Failed to check response limit:', error);
+      }
     }
   } catch (error) {
     console.error('Failed to load survey:', error);

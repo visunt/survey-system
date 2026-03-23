@@ -21,6 +21,8 @@ export interface SurveyAttributes {
   startDate?: Date;
   endDate?: Date;
   deadline?: Date;
+  responseLimit?: number;
+  maxResponsesPerUser: number;
   allowAnonymous: boolean;
   requireLogin: boolean;
   limitByDevice?: boolean;

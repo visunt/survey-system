@@ -74,6 +74,37 @@
               </div>
             </el-form-item>
           </el-col>
+          <el-col :xs="24" :sm="12" :md="12" :lg="12">
+            <el-form-item label="回收数量上限">
+              <el-input-number
+                v-model="survey.responseLimit"
+                :min="1"
+                :max="999999"
+                placeholder="不设置表示无限制"
+                style="width: 100%"
+                controls-position="right"
+              />
+              <div class="deadline-tip">
+                <el-icon><InfoFilled /></el-icon>
+                <span>达到上限后问卷将自动关闭（留空表示无限制）</span>
+              </div>
+            </el-form-item>
+          </el-col>
+          <el-col :xs="24" :sm="12" :md="12" :lg="12">
+            <el-form-item label="每人限填次数">
+              <el-select v-model="survey.maxResponsesPerUser" placeholder="选择限填次数" style="width: 100%">
+                <el-option label="仅限1次" :value="1" />
+                <el-option label="最多2次" :value="2" />
+                <el-option label="最多3次" :value="3" />
+                <el-option label="最多5次" :value="5" />
+                <el-option label="不限制" :value="0" />
+              </el-select>
+              <div class="deadline-tip">
+                <el-icon><InfoFilled /></el-icon>
+                <span>限制同一用户可填写的次数</span>
+              </div>
+            </el-form-item>
+          </el-col>
         </el-row>
       </el-card>
 
@@ -680,6 +711,8 @@ const survey = reactive<Partial<Survey>>({
   allowAnonymous: false,
   requireLogin: true,
   deadline: undefined,
+  responseLimit: undefined,
+  maxResponsesPerUser: 1,
   questions: [],
 });
 
@@ -710,6 +743,8 @@ const getSurveySnapshot = (): string => {
     allowAnonymous: survey.allowAnonymous,
     requireLogin: survey.requireLogin,
     deadline: survey.deadline,
+    responseLimit: survey.responseLimit,
+    maxResponsesPerUser: survey.maxResponsesPerUser,
     questions: survey.questions?.map(q => ({
       title: (q as any).title,
       type: (q as any).type,
@@ -1437,6 +1472,8 @@ const loadSurvey = async () => {
       survey.requireLogin = data.requireLogin;
       survey.status = data.status;
       survey.deadline = data.deadline;
+      survey.responseLimit = data.responseLimit;
+      survey.maxResponsesPerUser = data.maxResponsesPerUser;
       survey.questions = (data.questions || []).map((q: any) => ({
         ...q,
         inputMode: 'single',

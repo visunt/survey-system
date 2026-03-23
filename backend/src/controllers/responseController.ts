@@ -3,6 +3,64 @@ import { Response as SurveyResponse, Answer, Question, Survey, QuestionOption } 
 import { AuthRequest } from '../types';
 import { validateAllRules } from '../utils/validation';
 
+export const checkResponseLimit = async (req: AuthRequest, res: Response) => {
+  try {
+    const { surveyId } = req.params;
+    const userId = req.user?.id;
+    const surveyIdStr = Array.isArray(surveyId) ? surveyId[0] : surveyId;
+
+    const survey = await Survey.findByPk(surveyIdStr);
+
+    if (!survey) {
+      return res.status(404).json({ error: 'Survey not found' });
+    }
+
+    // 获取当前回收数量
+    const currentCount = await SurveyResponse.count({
+      where: { surveyId: surveyIdStr },
+    });
+
+    // 获取用户已填写次数
+    let userResponseCount = 0;
+    if (userId) {
+      userResponseCount = await SurveyResponse.count({
+        where: { surveyId: surveyIdStr, userId },
+      });
+    }
+
+    // 检查是否可以提交
+    let canSubmit = true;
+    let reason: string | undefined;
+
+    // 检查回收数量上限
+    if (survey.responseLimit !== null && survey.responseLimit !== undefined) {
+      if (currentCount >= survey.responseLimit) {
+        canSubmit = false;
+        reason = '该问卷已达到回收数量上限';
+      }
+    }
+
+    // 检查每人限填次数
+    if (canSubmit && survey.maxResponsesPerUser > 0 && userId) {
+      if (userResponseCount >= survey.maxResponsesPerUser) {
+        canSubmit = false;
+        reason = `您已达到该问卷的填写次数上限（${survey.maxResponsesPerUser}次）`;
+      }
+    }
+
+    res.json({
+      canSubmit,
+      reason,
+      currentCount,
+      limit: survey.responseLimit,
+      userResponseCount,
+      maxResponsesPerUser: survey.maxResponsesPerUser,
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Server error', details: (error as Error).message });
+  }
+};
+
 export const submitResponse = async (req: AuthRequest, res: Response) => {
   try {
     const { surveyId } = req.params;
@@ -23,6 +81,26 @@ export const submitResponse = async (req: AuthRequest, res: Response) => {
     // 检查截止时间
     if (survey.deadline && new Date(survey.deadline) < new Date()) {
       return res.status(400).json({ error: 'Survey has expired' });
+    }
+
+    // 检查回收数量上限
+    if (survey.responseLimit !== null && survey.responseLimit !== undefined) {
+      const currentCount = await SurveyResponse.count({
+        where: { surveyId: surveyIdStr },
+      });
+      if (currentCount >= survey.responseLimit) {
+        return res.status(403).json({ error: '该问卷已达到回收数量上限，无法继续提交' });
+      }
+    }
+
+    // 检查每人限填次数
+    if (survey.maxResponsesPerUser > 0 && userId) {
+      const userResponseCount = await SurveyResponse.count({
+        where: { surveyId: surveyIdStr, userId },
+      });
+      if (userResponseCount >= survey.maxResponsesPerUser) {
+        return res.status(403).json({ error: `您已达到该问卷的填写次数上限（${survey.maxResponsesPerUser}次）` });
+      }
     }
 
     if (survey.requireLogin && !userId) {
