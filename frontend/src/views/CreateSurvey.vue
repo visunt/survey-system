@@ -183,6 +183,112 @@
                         </el-button>
                       </div>
                     </div>
+
+                    <!-- 验证规则配置 -->
+                    <div v-if="getAvailableValidationTypes(question.type).length > 0" class="validation-config">
+                      <el-divider content-position="left">验证规则</el-divider>
+
+                      <el-collapse accordion>
+                        <el-collapse-item title="配置验证规则（可选）" name="validation">
+                          <!-- 已添加的验证规则列表 -->
+                          <div v-if="question.validationRules && question.validationRules.length > 0" class="rules-list">
+                            <div v-for="(rule, rIndex) in question.validationRules" :key="rIndex" class="rule-item">
+                              <div class="rule-header">
+                                <el-tag size="small" type="info">{{ getValidationTypeLabel(rule.type) }}</el-tag>
+                                <el-button type="danger" :icon="Delete" circle size="small" @click="removeValidationRule(index, rIndex)" />
+                              </div>
+                              
+                              <!-- 数字范围配置 -->
+                              <div v-if="rule.type === 'number_range'" class="rule-config">
+                                <el-row :gutter="10">
+                                  <el-col :span="12">
+                                    <el-input v-model.number="rule.config!.min" placeholder="最小值" size="small">
+                                      <template #prepend>最小</template>
+                                    </el-input>
+                                  </el-col>
+                                  <el-col :span="12">
+                                    <el-input v-model.number="rule.config!.max" placeholder="最大值" size="small">
+                                      <template #prepend>最大</template>
+                                    </el-input>
+                                  </el-col>
+                                </el-row>
+                              </div>
+                              
+                              <!-- 字数限制配置 -->
+                              <div v-else-if="rule.type === 'text_length'" class="rule-config">
+                                <el-row :gutter="10">
+                                  <el-col :span="12">
+                                    <el-input v-model.number="rule.config!.min" placeholder="最小字数" size="small">
+                                      <template #prepend>最小</template>
+                                    </el-input>
+                                  </el-col>
+                                  <el-col :span="12">
+                                    <el-input v-model.number="rule.config!.max" placeholder="最大字数" size="small">
+                                      <template #prepend>最大</template>
+                                    </el-input>
+                                  </el-col>
+                                </el-row>
+                              </div>
+                              
+                              <!-- 自定义正则配置 -->
+                              <div v-else-if="rule.type === 'regex'" class="rule-config">
+                                <el-input v-model="rule.config!.pattern" placeholder="正则表达式，如：^[A-Za-z0-9]+$" size="small" style="margin-bottom: 8px">
+                                  <template #prepend>正则</template>
+                                </el-input>
+                                <el-input v-model="rule.config!.message" placeholder="验证失败时的提示信息" size="small">
+                                  <template #prepend>提示</template>
+                                </el-input>
+                              </div>
+                              
+                              <!-- 日期范围配置 -->
+                              <div v-else-if="rule.type === 'date_range'" class="rule-config">
+                                <el-row :gutter="10">
+                                  <el-col :span="12">
+                                    <el-date-picker
+                                      v-model="rule.config!.startDate"
+                                      type="date"
+                                      placeholder="开始日期"
+                                      value-format="YYYY-MM-DD"
+                                      size="small"
+                                      style="width: 100%"
+                                    />
+                                  </el-col>
+                                  <el-col :span="12">
+                                    <el-date-picker
+                                      v-model="rule.config!.endDate"
+                                      type="date"
+                                      placeholder="结束日期"
+                                      value-format="YYYY-MM-DD"
+                                      size="small"
+                                      style="width: 100%"
+                                    />
+                                  </el-col>
+                                </el-row>
+                              </div>
+                            </div>
+                          </div>
+
+                          <!-- 添加新规则 -->
+                          <el-dropdown @command="(type: string) => addValidationRule(index, type)" style="margin-top: 12px">
+                            <el-button type="primary" size="small">
+                              <el-icon class="el-icon--left"><Plus /></el-icon>
+                              添加验证规则
+                            </el-button>
+                            <template #dropdown>
+                              <el-dropdown-menu>
+                                <el-dropdown-item
+                                  v-for="type in getAvailableValidationTypes(question.type)"
+                                  :key="type.value"
+                                  :command="type.value"
+                                >
+                                  {{ type.label }}
+                                </el-dropdown-item>
+                              </el-dropdown-menu>
+                            </template>
+                          </el-dropdown>
+                        </el-collapse-item>
+                      </el-collapse>
+                    </div>
                   </div>
                 </el-collapse-transition>
 
@@ -267,12 +373,13 @@ import { useRouter, useRoute } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { Delete, Plus, InfoFilled, Top, Bottom, Rank, Star, DocumentCopy, Share, Loading, CircleCheck, CircleClose } from '@element-plus/icons-vue';
 import draggable from 'vuedraggable';
-import { surveyAPI, type Survey, type Question, type QuestionOption } from '../api/survey';
+import { surveyAPI, type Survey, type Question, type QuestionOption, type ValidationRule } from '../api/survey';
 import { templateAPI } from '../api/template';
 import type { Template } from '../api/template';
 import SurveyPreview from '../components/SurveyPreview.vue';
 import TemplateSelector from '../components/TemplateSelector.vue';
 import ShareDialog from '../components/ShareDialog.vue';
+import { getAvailableValidationTypes } from '../utils/validation';
 
 const router = useRouter();
 const route = useRoute();
@@ -483,6 +590,42 @@ const getQuestionTypeText = (type: string) => {
   };
   return texts[type] || type;
 };
+
+// ============ 验证规则相关 ============
+const getValidationTypeLabel = (type: string): string => {
+  const labels: Record<string, string> = {
+    phone: '手机号验证',
+    email: '邮箱验证',
+    idcard: '身份证验证',
+    number_range: '数字范围',
+    text_length: '字数限制',
+    regex: '自定义正则',
+    date_range: '日期范围',
+  };
+  return labels[type] || type;
+};
+
+const addValidationRule = (questionIndex: number, type: string) => {
+  const question = survey.questions![questionIndex] as any;
+  if (!question.validationRules) {
+    question.validationRules = [];
+  }
+  
+  const newRule: ValidationRule = {
+    type: type as any,
+    config: {},
+  };
+  
+  question.validationRules.push(newRule);
+};
+
+const removeValidationRule = (questionIndex: number, ruleIndex: number) => {
+  const question = survey.questions![questionIndex] as any;
+  if (question.validationRules) {
+    question.validationRules.splice(ruleIndex, 1);
+  }
+};
+// ============ 验证规则相关结束 ============
 
 const toggleQuestion = (questionId: number) => {
   if (expandedQuestions.value.has(questionId)) {
@@ -1266,6 +1409,37 @@ onUnmounted(() => {
   gap: 6px;
   color: #909399;
   font-size: 12px;
+}
+
+.validation-config {
+  margin-top: 16px;
+  padding: 16px;
+  background: #f0f9ff;
+  border-radius: 8px;
+}
+
+.rules-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.rule-item {
+  padding: 12px;
+  background: #fff;
+  border-radius: 6px;
+  border: 1px solid #e4e7ed;
+}
+
+.rule-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.rule-config {
+  margin-top: 8px;
 }
 
 .actions {

@@ -36,6 +36,7 @@ export interface QuestionAttributes {
   isRequired: boolean;
   orderIndex: number;
   skipLogic?: SkipLogic;
+  validationRules?: ValidationRule[];
   options?: QuestionOptionAttributes[];
   createdAt?: Date;
   updatedAt?: Date;
@@ -52,6 +53,19 @@ export interface SkipCondition {
   questionId: number;
   operator: 'equals' | 'not_equals' | 'contains' | 'greater_than' | 'less_than';
   value: string | number;
+}
+
+// 验证规则类型定义
+export interface ValidationRule {
+  type: 'phone' | 'email' | 'idcard' | 'number_range' | 'text_length' | 'regex' | 'date_range';
+  config?: {
+    min?: number;
+    max?: number;
+    pattern?: string;
+    message?: string;
+    startDate?: string;
+    endDate?: string;
+  };
 }
 
 export interface QuestionOptionAttributes {

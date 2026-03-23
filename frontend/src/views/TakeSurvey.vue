@@ -124,7 +124,12 @@
           v-model="answers[question.id!]"
           placeholder="请输入您的回答"
           @change="handleAnswerChange(question)"
+          @blur="validateQuestion(question)"
         />
+        <div v-if="question.type === 'text' && validationErrors[question.id!]" class="validation-error">
+          <el-icon><WarningFilled /></el-icon>
+          <span>{{ validationErrors[question.id!] }}</span>
+        </div>
 
         <el-input
           v-else-if="question.type === 'textarea'"
@@ -133,7 +138,12 @@
           :rows="4"
           placeholder="请输入您的回答"
           @change="handleAnswerChange(question)"
+          @blur="validateQuestion(question)"
         />
+        <div v-if="question.type === 'textarea' && validationErrors[question.id!]" class="validation-error">
+          <el-icon><WarningFilled /></el-icon>
+          <span>{{ validationErrors[question.id!] }}</span>
+        </div>
 
         <el-rate
           v-else-if="question.type === 'rating'"
@@ -149,8 +159,12 @@
           type="date"
           placeholder="请选择日期"
           style="width: 100%"
-          @change="handleAnswerChange(question)"
+          @change="handleAnswerChange(question); validateQuestion(question)"
         />
+        <div v-if="question.type === 'date' && validationErrors[question.id!]" class="validation-error">
+          <el-icon><WarningFilled /></el-icon>
+          <span>{{ validationErrors[question.id!] }}</span>
+        </div>
       </el-card>
 
       <div class="submit-section">
@@ -166,11 +180,12 @@
 import { ref, onMounted, computed } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { ElMessage } from 'element-plus';
-import { CircleClose } from '@element-plus/icons-vue';
+import { CircleClose, WarningFilled } from '@element-plus/icons-vue';
 import type { FormInstance } from 'element-plus';
 import { surveyAPI, type Survey, type Question } from '../api/survey';
 import { responseAPI, type Answer } from '../api/response';
 import { useAuthStore } from '../stores/auth';
+import { validateAllRules } from '../utils/validation';
 
 const router = useRouter();
 const route = useRoute();
@@ -184,6 +199,7 @@ const formRef = ref<FormInstance>();
 const answers = ref<Record<number, string | boolean>>({});
 const multiAnswers = ref<Record<number, string[]>>({});
 const deviceId = ref<string>('');
+const validationErrors = ref<Record<number, string>>({});
 
 const generateDeviceId = (): string => {
   const canvas = document.createElement('canvas');
@@ -311,6 +327,48 @@ const handleAnswerChange = (question: Question) => {
   // Answer change handler for potential future use
 };
 
+// 验证单个题目
+const validateQuestion = (question: Question) => {
+  if (!question.validationRules || question.validationRules.length === 0) {
+    // 没有验证规则，清除错误
+    delete validationErrors.value[question.id!];
+    return true;
+  }
+
+  const value = String(answers.value[question.id!] || '');
+  
+  // 如果是日期类型，格式化为 YYYY-MM-DD
+  const answerValue = question.type === 'date' && answers.value[question.id!]
+    ? new Date(answers.value[question.id!] as any).toISOString().split('T')[0]
+    : value;
+
+  const result = validateAllRules(answerValue, question.validationRules, question.type);
+  
+  if (!result.valid && result.messages.length > 0) {
+    validationErrors.value[question.id!] = result.messages[0];
+    return false;
+  } else {
+    delete validationErrors.value[question.id!];
+    return true;
+  }
+};
+
+// 验证所有题目
+const validateAllQuestions = (): boolean => {
+  let allValid = true;
+  
+  for (const question of survey.value!.questions) {
+    if (question.validationRules && question.validationRules.length > 0) {
+      const valid = validateQuestion(question);
+      if (!valid) {
+        allValid = false;
+      }
+    }
+  }
+  
+  return allValid;
+};
+
 const goBack = () => {
   router.back();
 };
@@ -324,6 +382,7 @@ const handleSubmit = async () => {
     return;
   }
 
+  // 验证必填题
   for (const question of survey.value.questions) {
     if (question.isRequired) {
       const answer = answers.value[question.id!] ?? multiAnswers.value[question.id!];
@@ -332,6 +391,12 @@ const handleSubmit = async () => {
         return;
       }
     }
+  }
+
+  // 验证所有验证规则
+  if (!validateAllQuestions()) {
+    ElMessage.warning('请检查输入格式是否正确');
+    return;
   }
 
   const submissionAnswers: Answer[] = [];
@@ -495,6 +560,23 @@ onMounted(() => {
 .expired-message .expired-time {
   font-size: 12px;
   color: #c0c4cc;
+}
+
+.validation-error {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: #fef0f0;
+  border-radius: 4px;
+  color: #f56c6c;
+  font-size: 13px;
+}
+
+.validation-error .el-icon {
+  font-size: 14px;
+  flex-shrink: 0;
 }
 
 @media (max-width: 768px) {

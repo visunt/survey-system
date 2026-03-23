@@ -19,6 +19,18 @@ export interface SkipCondition {
   value: string | number;
 }
 
+export interface ValidationRule {
+  type: 'phone' | 'email' | 'idcard' | 'number_range' | 'text_length' | 'regex' | 'date_range';
+  config?: {
+    min?: number;
+    max?: number;
+    pattern?: string;
+    message?: string;
+    startDate?: string;
+    endDate?: string;
+  };
+}
+
 export interface Question {
   id?: number;
   title: string;
@@ -26,6 +38,7 @@ export interface Question {
   isRequired: boolean;
   orderIndex: number;
   skipLogic?: SkipLogic;
+  validationRules?: ValidationRule[];
   options?: QuestionOption[];
 }
 

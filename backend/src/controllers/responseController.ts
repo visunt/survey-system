@@ -1,6 +1,7 @@
 import { Response, Request } from 'express';
 import { Response as SurveyResponse, Answer, Question, Survey, QuestionOption } from '../models';
 import { AuthRequest } from '../types';
+import { validateAllRules } from '../utils/validation';
 
 export const submitResponse = async (req: AuthRequest, res: Response) => {
   try {
@@ -51,6 +52,15 @@ export const submitResponse = async (req: AuthRequest, res: Response) => {
 
       if (question.isRequired && (!answer || !answer.answer)) {
         return res.status(400).json({ error: `Question "${question.title}" is required` });
+      }
+
+      // 验证规则检查
+      if (answer && answer.answer && question.validationRules && question.validationRules.length > 0) {
+        const validation = validateAllRules(answer.answer, question.validationRules, question.type);
+        if (!validation.valid) {
+          const errorMessage = validation.messages[0]; // 返回第一个错误信息
+          return res.status(400).json({ error: `Question "${question.title}": ${errorMessage}` });
+        }
       }
     }
 

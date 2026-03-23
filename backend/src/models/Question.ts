@@ -1,6 +1,6 @@
 import { DataTypes, Model, Association } from 'sequelize';
 import sequelize from '../config/database';
-import { QuestionAttributes, QuestionOptionAttributes, SkipLogic } from '../types';
+import { QuestionAttributes, QuestionOptionAttributes, SkipLogic, ValidationRule } from '../types';
 import Survey from './Survey';
 import QuestionOption from './QuestionOption';
 import Answer from './Answer';
@@ -13,6 +13,7 @@ class Question extends Model<QuestionAttributes> implements QuestionAttributes {
   public isRequired!: boolean;
   public orderIndex!: number;
   public skipLogic?: SkipLogic;
+  public validationRules?: ValidationRule[];
   public options?: QuestionOptionAttributes[];
   public answers?: Answer[];
   public readonly createdAt!: Date;
@@ -66,6 +67,17 @@ Question.init(
       },
       set(value: SkipLogic | null | undefined) {
         this.setDataValue('skipLogic', value ? JSON.stringify(value) as any : undefined);
+      },
+    },
+    validationRules: {
+      type: DataTypes.JSON,
+      allowNull: true,
+      get() {
+        const value = this.getDataValue('validationRules');
+        return value ? (typeof value === 'string' ? JSON.parse(value) : value) : null;
+      },
+      set(value: ValidationRule[] | null | undefined) {
+        this.setDataValue('validationRules', value ? JSON.stringify(value) as any : undefined);
       },
     },
   },
