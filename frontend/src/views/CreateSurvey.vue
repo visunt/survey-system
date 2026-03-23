@@ -289,6 +289,138 @@
                         </el-collapse-item>
                       </el-collapse>
                     </div>
+
+                    <!-- 显示逻辑配置 -->
+                    <div class="display-logic-config">
+                      <el-divider content-position="left">显示逻辑</el-divider>
+
+                      <el-collapse accordion>
+                        <el-collapse-item name="display-logic">
+                          <template #title>
+                            <div class="display-logic-title">
+                              <el-switch
+                                v-model="(question.displayLogic as any).enabled"
+                                size="small"
+                                @click.stop
+                                @change="onDisplayLogicEnabledChange(question)"
+                              />
+                              <span style="margin-left: 8px;">配置显示逻辑（可选）</span>
+                            </div>
+                          </template>
+
+                          <div v-if="(question.displayLogic as any)?.enabled" class="display-logic-content">
+                            <!-- 多条件逻辑选择 -->
+                            <div v-if="(question.displayLogic as any).conditions.length > 1" class="logic-selector">
+                              <el-radio-group v-model="(question.displayLogic as any).logic" size="small">
+                                <el-radio-button value="and">同时满足（AND）</el-radio-button>
+                                <el-radio-button value="or">满足任一（OR）</el-radio-button>
+                              </el-radio-group>
+                            </div>
+
+                            <!-- 条件列表 -->
+                            <div class="conditions-list">
+                              <div v-for="(condition, cIndex) in (question.displayLogic as any).conditions" :key="cIndex" class="condition-item">
+                                <div class="condition-row">
+                                  <!-- 依赖题目选择 -->
+                                  <el-select
+                                    v-model="condition.questionId"
+                                    placeholder="选择依赖题目"
+                                    size="small"
+                                    style="width: 200px;"
+                                    @change="onConditionQuestionChange(condition)"
+                                  >
+                                    <el-option
+                                      v-for="prevQ in getPreviousQuestions(index)"
+                                      :key="prevQ.id"
+                                      :label="`第${prevQ.orderIndex + 1}题: ${prevQ.title || '(未填写题目)'}`"
+                                      :value="prevQ.id"
+                                    />
+                                  </el-select>
+
+                                  <!-- 操作符选择 -->
+                                  <el-select
+                                    v-model="condition.operator"
+                                    placeholder="选择操作符"
+                                    size="small"
+                                    style="width: 140px;"
+                                  >
+                                    <el-option
+                                      v-for="op in getAvailableOperators(condition.questionId)"
+                                      :key="op.value"
+                                      :label="op.label"
+                                      :value="op.value"
+                                    />
+                                  </el-select>
+
+                                  <!-- 期望值输入 -->
+                                  <template v-if="!['is_empty', 'is_not_empty'].includes(condition.operator)">
+                                    <el-input
+                                      v-if="getExpectedValueType(condition.questionId) === 'text'"
+                                      v-model="condition.value"
+                                      placeholder="期望值"
+                                      size="small"
+                                      style="width: 150px;"
+                                    />
+                                    <el-input-number
+                                      v-else-if="getExpectedValueType(condition.questionId) === 'number'"
+                                      v-model="condition.value"
+                                      placeholder="期望值"
+                                      size="small"
+                                      style="width: 150px;"
+                                    />
+                                    <el-select
+                                      v-else-if="getExpectedValueType(condition.questionId) === 'options'"
+                                      v-model="condition.value"
+                                      placeholder="选择选项"
+                                      size="small"
+                                      style="width: 150px;"
+                                      :multiple="getDependentQuestionType(condition.questionId) === 'multiple_choice' || getDependentQuestionType(condition.questionId) === 'dropdown_multiple'"
+                                    >
+                                      <el-option
+                                        v-for="opt in getDependentQuestionOptions(condition.questionId)"
+                                        :key="opt.text"
+                                        :label="opt.text"
+                                        :value="opt.text"
+                                      />
+                                    </el-select>
+                                    <el-switch
+                                      v-else-if="getExpectedValueType(condition.questionId) === 'boolean'"
+                                      v-model="condition.value"
+                                      size="small"
+                                    />
+                                  </template>
+
+                                  <!-- 删除条件按钮 -->
+                                  <el-button
+                                    type="danger"
+                                    :icon="Delete"
+                                    circle
+                                    size="small"
+                                    @click="removeDisplayCondition(index, cIndex)"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+
+                            <!-- 添加条件按钮 -->
+                            <el-button
+                              type="primary"
+                              :icon="Plus"
+                              size="small"
+                              @click="addDisplayCondition(index)"
+                              style="margin-top: 12px;"
+                            >
+                              添加条件
+                            </el-button>
+
+                            <div class="display-logic-tips">
+                              <el-icon><InfoFilled /></el-icon>
+                              <span>设置后，只有当条件满足时此题才会显示</span>
+                            </div>
+                          </div>
+                        </el-collapse-item>
+                      </el-collapse>
+                    </div>
                   </div>
                 </el-collapse-transition>
 
@@ -373,7 +505,7 @@ import { useRouter, useRoute } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { Delete, Plus, InfoFilled, Top, Bottom, Rank, Star, DocumentCopy, Share, Loading, CircleCheck, CircleClose } from '@element-plus/icons-vue';
 import draggable from 'vuedraggable';
-import { surveyAPI, type Survey, type Question, type QuestionOption, type ValidationRule } from '../api/survey';
+import { surveyAPI, type Survey, type Question, type QuestionOption, type ValidationRule, type DisplayLogic, type DisplayCondition } from '../api/survey';
 import { templateAPI } from '../api/template';
 import type { Template } from '../api/template';
 import SurveyPreview from '../components/SurveyPreview.vue';
@@ -627,6 +759,167 @@ const removeValidationRule = (questionIndex: number, ruleIndex: number) => {
 };
 // ============ 验证规则相关结束 ============
 
+// ============ 显示逻辑相关 ============
+const getPreviousQuestions = (currentIndex: number) => {
+  // 返回当前题之前的所有题目
+  return (survey.questions as any[] || [])
+    .filter((q, idx) => idx < currentIndex)
+    .sort((a, b) => a.orderIndex - b.orderIndex);
+};
+
+const getDependentQuestion = (questionId: number | undefined) => {
+  if (!questionId) return null;
+  return (survey.questions as any[] || []).find(q => q.id === questionId);
+};
+
+const getDependentQuestionType = (questionId: number | undefined) => {
+  const q = getDependentQuestion(questionId);
+  return q?.type;
+};
+
+const getDependentQuestionOptions = (questionId: number | undefined) => {
+  const q = getDependentQuestion(questionId);
+  if (!q || !q.options) return [];
+  
+  // 如果是批量模式，先解析
+  if (q.inputMode === 'batch' && q.batchText) {
+    const lines = q.batchText
+      .split('\n')
+      .map((line: string) => line.trim())
+      .filter((line: string) => line.length > 0);
+    return lines.map((text: string) => ({ text, orderIndex: 0 }));
+  }
+  
+  return q.options || [];
+};
+
+const getAvailableOperators = (questionId: number | undefined) => {
+  const type = getDependentQuestionType(questionId);
+  if (!type) {
+    return [
+      { value: 'equals', label: '等于' },
+      { value: 'not_equals', label: '不等于' },
+    ];
+  }
+
+  const operators: { value: string; label: string }[] = [];
+
+  switch (type) {
+    case 'single_choice':
+    case 'dropdown_single':
+    case 'switch':
+      operators.push(
+        { value: 'equals', label: '等于' },
+        { value: 'not_equals', label: '不等于' }
+      );
+      break;
+    case 'multiple_choice':
+    case 'dropdown_multiple':
+      operators.push(
+        { value: 'contains', label: '包含' },
+        { value: 'not_contains', label: '不包含' }
+      );
+      break;
+    case 'rating':
+      operators.push(
+        { value: 'equals', label: '等于' },
+        { value: 'not_equals', label: '不等于' },
+        { value: 'greater_than', label: '大于' },
+        { value: 'less_than', label: '小于' }
+      );
+      break;
+    case 'text':
+    case 'textarea':
+      operators.push(
+        { value: 'equals', label: '等于' },
+        { value: 'not_equals', label: '不等于' },
+        { value: 'contains', label: '包含' },
+        { value: 'not_contains', label: '不包含' }
+      );
+      break;
+    case 'date':
+      operators.push(
+        { value: 'equals', label: '等于' },
+        { value: 'not_equals', label: '不等于' },
+        { value: 'greater_than', label: '晚于' },
+        { value: 'less_than', label: '早于' }
+      );
+      break;
+  }
+
+  // 所有类型都支持 is_empty 和 is_not_empty
+  operators.push(
+    { value: 'is_empty', label: '为空' },
+    { value: 'is_not_empty', label: '不为空' }
+  );
+
+  return operators;
+};
+
+const getExpectedValueType = (questionId: number | undefined): 'text' | 'number' | 'options' | 'boolean' | 'none' => {
+  const type = getDependentQuestionType(questionId);
+  if (!type) return 'text';
+
+  switch (type) {
+    case 'single_choice':
+    case 'dropdown_single':
+    case 'multiple_choice':
+    case 'dropdown_multiple':
+      return 'options';
+    case 'rating':
+      return 'number';
+    case 'switch':
+      return 'boolean';
+    case 'text':
+    case 'textarea':
+    case 'date':
+    default:
+      return 'text';
+  }
+};
+
+const onDisplayLogicEnabledChange = (question: any) => {
+  if (question.displayLogic?.enabled && (!question.displayLogic.conditions || question.displayLogic.conditions.length === 0)) {
+    // 初始化一个空条件
+    question.displayLogic.conditions = [{
+      questionId: undefined as any,
+      operator: 'equals',
+      value: '',
+    }];
+    question.displayLogic.logic = 'and';
+  }
+};
+
+const onConditionQuestionChange = (condition: any) => {
+  // 重置操作符和值
+  condition.operator = 'equals';
+  condition.value = '';
+};
+
+const addDisplayCondition = (questionIndex: number) => {
+  const question = (survey.questions as any[])[questionIndex];
+  if (!question.displayLogic) {
+    question.displayLogic = { enabled: true, conditions: [], logic: 'and' };
+  }
+  question.displayLogic.conditions.push({
+    questionId: undefined as any,
+    operator: 'equals',
+    value: '',
+  });
+};
+
+const removeDisplayCondition = (questionIndex: number, conditionIndex: number) => {
+  const question = (survey.questions as any[])[questionIndex];
+  if (question.displayLogic?.conditions) {
+    question.displayLogic.conditions.splice(conditionIndex, 1);
+    // 如果没有条件了，关闭显示逻辑
+    if (question.displayLogic.conditions.length === 0) {
+      question.displayLogic.enabled = false;
+    }
+  }
+};
+// ============ 显示逻辑相关结束 ============
+
 const toggleQuestion = (questionId: number) => {
   if (expandedQuestions.value.has(questionId)) {
     expandedQuestions.value.delete(questionId);
@@ -645,6 +938,11 @@ const addQuestion = () => {
     options: [],
     inputMode: 'batch',
     batchText: '',
+    displayLogic: {
+      enabled: false,
+      conditions: [],
+      logic: 'and',
+    },
   };
   survey.questions!.push(newQuestion);
   expandedQuestions.value.add(newQuestion.id);
@@ -734,6 +1032,11 @@ const insertQuestionAfter = (index: number) => {
     options: [],
     inputMode: 'batch',
     batchText: '',
+    displayLogic: {
+      enabled: false,
+      conditions: [],
+      logic: 'and',
+    },
   };
   survey.questions!.splice(index + 1, 0, newQuestion);
   survey.questions!.forEach((q: any, i: number) => {
@@ -1008,6 +1311,11 @@ const loadSurvey = async () => {
         ...q,
         inputMode: 'single',
         batchText: '',
+        displayLogic: q.displayLogic || {
+          enabled: false,
+          conditions: [],
+          logic: 'and',
+        },
       }));
       
       // 展开所有已加载的题目
@@ -1416,6 +1724,55 @@ onUnmounted(() => {
   padding: 16px;
   background: #f0f9ff;
   border-radius: 8px;
+}
+
+.display-logic-config {
+  margin-top: 16px;
+  padding: 16px;
+  background: #fff7e6;
+  border-radius: 8px;
+}
+
+.display-logic-title {
+  display: flex;
+  align-items: center;
+}
+
+.display-logic-content {
+  margin-top: 12px;
+}
+
+.logic-selector {
+  margin-bottom: 12px;
+}
+
+.conditions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.condition-item {
+  padding: 12px;
+  background: #fff;
+  border-radius: 6px;
+  border: 1px solid #e4e7ed;
+}
+
+.condition-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.display-logic-tips {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+  color: #909399;
+  font-size: 12px;
 }
 
 .rules-list {

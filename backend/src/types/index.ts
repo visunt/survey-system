@@ -36,6 +36,7 @@ export interface QuestionAttributes {
   isRequired: boolean;
   orderIndex: number;
   skipLogic?: SkipLogic;
+  displayLogic?: DisplayLogic;
   validationRules?: ValidationRule[];
   options?: QuestionOptionAttributes[];
   createdAt?: Date;
@@ -53,6 +54,19 @@ export interface SkipCondition {
   questionId: number;
   operator: 'equals' | 'not_equals' | 'contains' | 'greater_than' | 'less_than';
   value: string | number;
+}
+
+// 显示逻辑类型定义
+export interface DisplayLogic {
+  enabled: boolean;
+  conditions: DisplayCondition[];
+  logic: 'and' | 'or';
+}
+
+export interface DisplayCondition {
+  questionId: number;
+  operator: 'equals' | 'not_equals' | 'contains' | 'not_contains' | 'greater_than' | 'less_than' | 'is_empty' | 'is_not_empty';
+  value: string | number | boolean;
 }
 
 // 验证规则类型定义

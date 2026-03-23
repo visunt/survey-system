@@ -182,7 +182,7 @@ import { useRouter, useRoute } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import { CircleClose, WarningFilled } from '@element-plus/icons-vue';
 import type { FormInstance } from 'element-plus';
-import { surveyAPI, type Survey, type Question } from '../api/survey';
+import { surveyAPI, type Survey, type Question, type DisplayCondition } from '../api/survey';
 import { responseAPI, type Answer } from '../api/response';
 import { useAuthStore } from '../stores/auth';
 import { validateAllRules } from '../utils/validation';
@@ -233,38 +233,101 @@ const sortedQuestions = computed(() => {
   return [...survey.value.questions].sort((a, b) => a.orderIndex - b.orderIndex);
 });
 
+// 评估单个显示条件
+const evaluateCondition = (condition: DisplayCondition): boolean => {
+  const questionId = condition.questionId;
+  const answer = answers.value[questionId];
+  const multiAnswer = multiAnswers.value[questionId];
+  
+  const operator = condition.operator;
+  const expectedValue = condition.value;
+  
+  // 获取答案值
+  let answerValue: string | undefined;
+  if (multiAnswer !== undefined && multiAnswer.length > 0) {
+    answerValue = multiAnswer.join(',');
+  } else if (answer !== undefined && answer !== null && answer !== '') {
+    answerValue = String(answer);
+  }
+  
+  switch (operator) {
+    case 'equals':
+      if (answerValue === undefined) return false;
+      return answerValue === String(expectedValue);
+    
+    case 'not_equals':
+      if (answerValue === undefined) return true;
+      return answerValue !== String(expectedValue);
+    
+    case 'contains':
+      if (answerValue === undefined) return false;
+      if (Array.isArray(multiAnswer)) {
+        return multiAnswer.includes(String(expectedValue));
+      }
+      return answerValue.includes(String(expectedValue));
+    
+    case 'not_contains':
+      if (answerValue === undefined) return true;
+      if (Array.isArray(multiAnswer)) {
+        return !multiAnswer.includes(String(expectedValue));
+      }
+      return !answerValue.includes(String(expectedValue));
+    
+    case 'greater_than':
+      if (answerValue === undefined) return false;
+      return Number(answerValue) > Number(expectedValue);
+    
+    case 'less_than':
+      if (answerValue === undefined) return false;
+      return Number(answerValue) < Number(expectedValue);
+    
+    case 'is_empty':
+      return answerValue === undefined || answerValue === '';
+    
+    case 'is_not_empty':
+      return answerValue !== undefined && answerValue !== '';
+    
+    default:
+      return true;
+  }
+};
+
+// 评估显示逻辑
+const evaluateDisplayLogic = (question: Question): boolean => {
+  if (!question.displayLogic || !question.displayLogic.enabled) {
+    return true; // 没有显示逻辑，默认显示
+  }
+  
+  const { conditions, logic } = question.displayLogic;
+  
+  if (!conditions || conditions.length === 0) {
+    return true; // 没有条件，默认显示
+  }
+  
+  if (logic === 'and') {
+    // AND: 所有条件都必须满足
+    return conditions.every(condition => evaluateCondition(condition));
+  } else {
+    // OR: 任一条件满足即可
+    return conditions.some(condition => evaluateCondition(condition));
+  }
+};
+
+// 获取所有可见题目ID集合
+const visibleQuestionIds = computed(() => {
+  const ids = new Set<number>();
+  sortedQuestions.value.forEach(question => {
+    if (evaluateDisplayLogic(question)) {
+      ids.add(question.id!);
+    }
+  });
+  return ids;
+});
+
 const visibleQuestions = computed(() => {
   return sortedQuestions.value.filter(question => {
-    if (!question.skipLogic || !question.skipLogic.enabled) {
-      return true;
-    }
-    
-    const { conditions } = question.skipLogic;
-    for (const condition of conditions) {
-      const dependentAnswer = answers.value[condition.questionId] || multiAnswers.value[condition.questionId];
-      
-      if (!dependentAnswer) continue;
-      
-      const answerValue = Array.isArray(dependentAnswer) 
-        ? dependentAnswer.join(',') 
-        : String(dependentAnswer);
-      
-      switch (condition.operator) {
-        case 'equals':
-          if (answerValue === String(condition.value)) return true;
-          break;
-        case 'not_equals':
-          if (answerValue !== String(condition.value)) return true;
-          break;
-        case 'contains':
-          if (answerValue.includes(String(condition.value))) return true;
-          break;
-        default:
-          return true;
-      }
-    }
-    
-    return conditions.length === 0;
+    // 使用显示逻辑判断是否可见
+    return evaluateDisplayLogic(question);
   });
 });
 
@@ -323,12 +386,39 @@ const sortedOptions = (question: Question) => {
   return [...question.options].sort((a, b) => a.orderIndex - b.orderIndex);
 };
 
+// 清除隐藏题目的答案
+const clearHiddenQuestionAnswers = () => {
+  if (!survey.value?.questions) return;
+  
+  survey.value.questions.forEach(question => {
+    if (!visibleQuestionIds.value.has(question.id!)) {
+      // 题目被隐藏，清除其答案
+      if (answers.value[question.id!] !== undefined) {
+        delete answers.value[question.id!];
+      }
+      if (multiAnswers.value[question.id!] !== undefined) {
+        delete multiAnswers.value[question.id!];
+      }
+      // 清除验证错误
+      if (validationErrors.value[question.id!] !== undefined) {
+        delete validationErrors.value[question.id!];
+      }
+    }
+  });
+};
+
 const handleAnswerChange = (question: Question) => {
-  // Answer change handler for potential future use
+  // 答案变化时，检查并清除隐藏题目的答案
+  clearHiddenQuestionAnswers();
 };
 
 // 验证单个题目
 const validateQuestion = (question: Question) => {
+  // 如果题目被隐藏，跳过验证
+  if (!visibleQuestionIds.value.has(question.id!)) {
+    return true;
+  }
+
   if (!question.validationRules || question.validationRules.length === 0) {
     // 没有验证规则，清除错误
     delete validationErrors.value[question.id!];
@@ -357,7 +447,8 @@ const validateQuestion = (question: Question) => {
 const validateAllQuestions = (): boolean => {
   let allValid = true;
   
-  for (const question of survey.value!.questions) {
+  // 只验证可见的题目
+  for (const question of visibleQuestions.value) {
     if (question.validationRules && question.validationRules.length > 0) {
       const valid = validateQuestion(question);
       if (!valid) {
@@ -382,8 +473,8 @@ const handleSubmit = async () => {
     return;
   }
 
-  // 验证必填题
-  for (const question of survey.value.questions) {
+  // 验证可见题目中的必填题
+  for (const question of visibleQuestions.value) {
     if (question.isRequired) {
       const answer = answers.value[question.id!] ?? multiAnswers.value[question.id!];
       if (!answer || (Array.isArray(answer) && answer.length === 0)) {
@@ -393,7 +484,7 @@ const handleSubmit = async () => {
     }
   }
 
-  // 验证所有验证规则
+  // 验证所有可见题目的验证规则
   if (!validateAllQuestions()) {
     ElMessage.warning('请检查输入格式是否正确');
     return;
@@ -401,7 +492,8 @@ const handleSubmit = async () => {
 
   const submissionAnswers: Answer[] = [];
 
-  for (const question of survey.value.questions) {
+  // 只提交可见题目的答案
+  for (const question of visibleQuestions.value) {
     let answer = '';
 
     if (question.type === 'multiple_choice' || question.type === 'dropdown_multiple') {
@@ -413,7 +505,7 @@ const handleSubmit = async () => {
       answer = String(answers.value[question.id!] || '');
     }
 
-    if (answer) {
+    if (answer && answer !== '[]' && answer !== '') {
       submissionAnswers.push({
         questionId: question.id!,
         answer,

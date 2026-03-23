@@ -29,6 +29,9 @@ export const createSurvey = async (req: AuthRequest, res: Response) => {
           type: questionData.type,
           isRequired: questionData.isRequired ?? true,
           orderIndex: questionData.orderIndex,
+          skipLogic: questionData.skipLogic,
+          displayLogic: questionData.displayLogic,
+          validationRules: questionData.validationRules,
         });
 
         if (questionData.options && Array.isArray(questionData.options)) {
@@ -238,6 +241,9 @@ export const updateSurvey = async (req: AuthRequest, res: Response) => {
           type: questionData.type,
           isRequired: questionData.isRequired ?? true,
           orderIndex: questionData.orderIndex,
+          skipLogic: questionData.skipLogic,
+          displayLogic: questionData.displayLogic,
+          validationRules: questionData.validationRules,
         });
 
         if (questionData.options) {
@@ -396,6 +402,9 @@ export const duplicateSurvey = async (req: AuthRequest, res: Response) => {
           type: questionData.type,
           isRequired: questionData.isRequired,
           orderIndex: questionData.orderIndex,
+          skipLogic: questionData.skipLogic,
+          displayLogic: questionData.displayLogic,
+          validationRules: questionData.validationRules,
         });
 
         // 复制问题的选项
