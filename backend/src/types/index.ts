@@ -20,6 +20,7 @@ export interface SurveyAttributes {
   creatorId: number;
   startDate?: Date;
   endDate?: Date;
+  deadline?: Date;
   allowAnonymous: boolean;
   requireLogin: boolean;
   limitByDevice?: boolean;

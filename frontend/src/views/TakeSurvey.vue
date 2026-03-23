@@ -6,11 +6,39 @@
       </template>
     </el-page-header>
 
+    <!-- 进度条 -->
+    <el-card v-if="survey && !loading && survey.status === 'published'" class="progress-card">
+      <div class="progress-content">
+        <div class="progress-text">
+          <span class="progress-label">填写进度</span>
+          <span class="progress-detail">已完成 {{ completedCount }}/{{ totalCount }} 题</span>
+        </div>
+        <el-progress
+          :percentage="progressPercentage"
+          :stroke-width="12"
+          :show-text="false"
+          :color="progressColor"
+        />
+      </div>
+    </el-card>
+
     <el-empty v-if="loading" description="加载中..." />
 
     <el-empty v-else-if="!survey" description="问卷不存在" />
 
     <el-empty v-else-if="survey.status !== 'published'" description="该问卷尚未发布或已关闭" />
+
+    <el-empty v-else-if="isExpired" description="该问卷已截止">
+      <template #description>
+        <div class="expired-message">
+          <el-icon size="48" color="#f56c6c"><CircleClose /></el-icon>
+          <p>该问卷已截止</p>
+          <p class="expired-time" v-if="survey.deadline">
+            截止时间：{{ formatDeadline(survey.deadline) }}
+          </p>
+        </div>
+      </template>
+    </el-empty>
 
     <el-form v-else ref="formRef" :model="answers" label-position="top" class="survey-form">
       <el-card v-for="(question, index) in visibleQuestions" :key="question.id" class="question-card">
@@ -138,6 +166,7 @@
 import { ref, onMounted, computed } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { ElMessage } from 'element-plus';
+import { CircleClose } from '@element-plus/icons-vue';
 import type { FormInstance } from 'element-plus';
 import { surveyAPI, type Survey, type Question } from '../api/survey';
 import { responseAPI, type Answer } from '../api/response';
@@ -223,6 +252,56 @@ const visibleQuestions = computed(() => {
   });
 });
 
+// 进度计算
+const totalCount = computed(() => visibleQuestions.value.length);
+
+const completedCount = computed(() => {
+  return visibleQuestions.value.filter(question => {
+    const answer = answers.value[question.id!];
+    const multiAnswer = multiAnswers.value[question.id!];
+    
+    // 如果是必填题，必须有答案才算完成
+    if (question.isRequired) {
+      if (question.type === 'multiple_choice' || question.type === 'dropdown_multiple') {
+        return multiAnswer && multiAnswer.length > 0;
+      }
+      return answer !== undefined && answer !== '' && answer !== null;
+    }
+    
+    // 如果是选填题，无论是否作答都算完成
+    return true;
+  }).length;
+});
+
+const progressPercentage = computed(() => {
+  if (totalCount.value === 0) return 0;
+  return Math.round((completedCount.value / totalCount.value) * 100);
+});
+
+const progressColor = computed(() => {
+  if (progressPercentage.value < 30) return '#f56c6c';
+  if (progressPercentage.value < 70) return '#e6a23c';
+  return '#67c23a';
+});
+
+// 检查问卷是否已过期
+const isExpired = computed(() => {
+  if (!survey.value?.deadline) return false;
+  return new Date(survey.value.deadline) < new Date();
+});
+
+// 格式化截止时间
+const formatDeadline = (deadline: string) => {
+  const date = new Date(deadline);
+  return date.toLocaleString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
+
 const sortedOptions = (question: Question) => {
   if (!question.options) return [];
   return [...question.options].sort((a, b) => a.orderIndex - b.orderIndex);
@@ -238,6 +317,12 @@ const goBack = () => {
 
 const handleSubmit = async () => {
   if (!survey.value) return;
+
+  // 再次检查截止时间
+  if (isExpired.value) {
+    ElMessage.error('该问卷已截止，无法提交');
+    return;
+  }
 
   for (const question of survey.value.questions) {
     if (question.isRequired) {
@@ -275,7 +360,7 @@ const handleSubmit = async () => {
     submitting.value = true;
     await responseAPI.submitResponse(survey.value.id!, submissionAnswers, deviceId.value);
     ElMessage.success('提交成功！');
-    router.push('/surveys');
+    router.push(`/surveys/${survey.value.id}/thank-you`);
   } catch (error: any) {
     ElMessage.error(error.response?.data?.error || '提交失败');
   } finally {
@@ -322,6 +407,36 @@ onMounted(() => {
   margin: 0;
 }
 
+.progress-card {
+  margin-bottom: 20px;
+  max-width: 800px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.progress-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.progress-text {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.progress-label {
+  font-weight: 600;
+  font-size: 16px;
+  color: #303133;
+}
+
+.progress-detail {
+  font-size: 14px;
+  color: #606266;
+}
+
 .survey-form {
   max-width: 800px;
   margin: 0 auto;
@@ -365,6 +480,21 @@ onMounted(() => {
 
 .submit-section .el-button {
   min-width: 200px;
+}
+
+.expired-message {
+  text-align: center;
+  padding: 20px;
+}
+
+.expired-message p {
+  margin: 12px 0 0 0;
+  color: #909399;
+}
+
+.expired-message .expired-time {
+  font-size: 12px;
+  color: #c0c4cc;
 }
 
 @media (max-width: 768px) {

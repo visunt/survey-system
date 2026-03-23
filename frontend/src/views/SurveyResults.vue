@@ -20,6 +20,31 @@
       </template>
     </el-page-header>
 
+    <!-- 日期筛选卡片 -->
+    <el-card v-if="survey && statistics.totalResponses > 0" class="filter-card">
+      <div class="filter-content">
+        <div class="filter-label">
+          <el-icon><Calendar /></el-icon>
+          <span>统计时间筛选</span>
+        </div>
+        <el-date-picker
+          v-model="dateRange"
+          type="daterange"
+          range-separator="至"
+          start-placeholder="开始日期"
+          end-placeholder="结束日期"
+          format="YYYY-MM-DD"
+          value-format="YYYY-MM-DD"
+          :shortcuts="dateShortcuts"
+          @change="handleDateChange"
+          style="width: 380px"
+        />
+        <el-button v-if="dateRange && dateRange.length > 0" @click="clearDateFilter">
+          清除筛选
+        </el-button>
+      </div>
+    </el-card>
+
     <el-empty v-if="loading" description="加载中..." />
 
     <el-empty v-else-if="!survey" description="问卷不存在" />
@@ -33,7 +58,9 @@
           <el-col :span="8">
             <div class="stat-item">
               <div class="stat-value">{{ statistics.totalResponses }}</div>
-              <div class="stat-label">总回复数</div>
+              <div class="stat-label">
+                {{ statistics.dateRange?.startDate ? '筛选后回复数' : '总回复数' }}
+              </div>
             </div>
           </el-col>
           <el-col :span="8">
@@ -114,7 +141,7 @@
 import { ref, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { ElMessage } from 'element-plus';
-import { Download } from '@element-plus/icons-vue';
+import { Download, Calendar } from '@element-plus/icons-vue';
 import { responseAPI } from '../api/response';
 import { surveyAPI, type Survey } from '../api/survey';
 
@@ -128,6 +155,38 @@ const statistics = ref<any>({
   statistics: [],
 });
 const loading = ref(true);
+const dateRange = ref<[string, string] | null>(null);
+
+// 日期快捷选项
+const dateShortcuts = [
+  {
+    text: '最近7天',
+    value: () => {
+      const end = new Date();
+      const start = new Date();
+      start.setTime(start.getTime() - 3600 * 1000 * 24 * 7);
+      return [start, end];
+    },
+  },
+  {
+    text: '最近30天',
+    value: () => {
+      const end = new Date();
+      const start = new Date();
+      start.setTime(start.getTime() - 3600 * 1000 * 24 * 30);
+      return [start, end];
+    },
+  },
+  {
+    text: '最近90天',
+    value: () => {
+      const end = new Date();
+      const start = new Date();
+      start.setTime(start.getTime() - 3600 * 1000 * 24 * 90);
+      return [start, end];
+    },
+  },
+];
 
 const getQuestionTypeText = (type: string) => {
   const texts: Record<string, string> = {
@@ -172,7 +231,13 @@ const exportToExcel = async () => {
   try {
     ElMessage.info('正在生成 Excel，请稍候...');
     const id = route.params.id as string;
-    const response = await responseAPI.exportToExcel(id);
+    
+    // 添加日期筛选参数
+    const params = dateRange.value && dateRange.value.length === 2
+      ? { startDate: dateRange.value[0], endDate: dateRange.value[1] }
+      : undefined;
+    
+    const response = await responseAPI.exportToExcel(id, params);
 
     // 从响应头获取文件名
     const contentDisposition = response.headers['content-disposition'];
@@ -213,7 +278,13 @@ const exportToPDF = async () => {
   try {
     ElMessage.info('正在生成 PDF，请稍候...');
     const id = route.params.id as string;
-    const response = await responseAPI.exportToPdf(id);
+    
+    // 添加日期筛选参数
+    const params = dateRange.value && dateRange.value.length === 2
+      ? { startDate: dateRange.value[0], endDate: dateRange.value[1] }
+      : undefined;
+    
+    const response = await responseAPI.exportToPdf(id, params);
 
     // 从响应头获取文件名
     const contentDisposition = response.headers['content-disposition'];
@@ -245,14 +316,14 @@ const exportToPDF = async () => {
   }
 };
 
-const loadResults = async () => {
+const loadResults = async (startDate?: string, endDate?: string) => {
   try {
     const id = route.params.id as string;
 
     // 并行加载问卷和统计数据
     const [surveyResponse, statsResponse] = await Promise.all([
       surveyAPI.getSurveyById(id),
-      responseAPI.getSurveyStatistics(id),
+      responseAPI.getSurveyStatistics(id, startDate && endDate ? { startDate, endDate } : undefined),
     ]);
 
     survey.value = surveyResponse.data;
@@ -263,6 +334,24 @@ const loadResults = async () => {
   } finally {
     loading.value = false;
   }
+};
+
+// 日期筛选变化
+const handleDateChange = async (value: [string, string] | null) => {
+  if (value && value.length === 2) {
+    loading.value = true;
+    await loadResults(value[0], value[1]);
+  } else {
+    loading.value = true;
+    await loadResults();
+  }
+};
+
+// 清除日期筛选
+const clearDateFilter = async () => {
+  dateRange.value = null;
+  loading.value = true;
+  await loadResults();
 };
 
 onMounted(() => {
@@ -283,6 +372,25 @@ onMounted(() => {
 
 .page-header h2 {
   margin: 0;
+}
+
+.filter-card {
+  margin-bottom: 20px;
+}
+
+.filter-content {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.filter-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+  color: #303133;
 }
 
 .summary-card {

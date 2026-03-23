@@ -12,6 +12,14 @@
       </template>
     </el-page-header>
 
+    <!-- 自动保存状态提示 -->
+    <div v-if="isEdit && autoSaveStatus !== 'idle'" class="auto-save-status" :class="autoSaveStatus">
+      <el-icon v-if="autoSaveStatus === 'saving'" class="is-loading"><Loading /></el-icon>
+      <el-icon v-else-if="autoSaveStatus === 'saved'"><CircleCheck /></el-icon>
+      <el-icon v-else-if="autoSaveStatus === 'error'"><CircleClose /></el-icon>
+      <span>{{ autoSaveStatusText }}</span>
+    </div>
+
     <!-- 模板选择器 -->
     <TemplateSelector
       v-model="showTemplateSelector"
@@ -47,6 +55,23 @@
           <el-col :xs="24" :sm="12" :md="12" :lg="12">
             <el-form-item label="登录设置">
               <el-checkbox v-model="survey.requireLogin">需要登录后填写</el-checkbox>
+            </el-form-item>
+          </el-col>
+          <el-col :xs="24" :sm="24" :md="24" :lg="24">
+            <el-form-item label="截止时间">
+              <el-date-picker
+                v-model="survey.deadline"
+                type="datetime"
+                placeholder="选择截止时间（可选，不设置为永不过期）"
+                format="YYYY-MM-DD HH:mm"
+                value-format="YYYY-MM-DD HH:mm:ss"
+                :disabled-date="disabledDate"
+                style="width: 100%"
+              />
+              <div class="deadline-tip">
+                <el-icon><InfoFilled /></el-icon>
+                <span>设置截止时间后，问卷将在该时间后自动关闭</span>
+              </div>
             </el-form-item>
           </el-col>
         </el-row>
@@ -188,6 +213,7 @@
         <el-button @click="goBack">取消</el-button>
         <el-button @click="openPreview">预览</el-button>
         <el-button @click="saveAsTemplate" :loading="savingAsTemplate" :icon="Star">保存为模板</el-button>
+        <el-button type="success" v-if="survey.status === 'published'" @click="openShareDialog" :icon="Share">分享问卷</el-button>
         <el-button type="primary" @click="saveDraft" :loading="saving">保存草稿</el-button>
         <el-button type="success" @click="publishSurvey" :loading="publishing">发布问卷</el-button>
       </div>
@@ -229,20 +255,24 @@
         <el-button type="primary" @click="confirmSaveTemplate" :loading="savingAsTemplate">保存</el-button>
       </template>
     </el-dialog>
+
+    <!-- 分享弹窗 -->
+    <ShareDialog v-model="shareDialogVisible" :survey="survey as Survey" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue';
+import { ref, reactive, onMounted, onUnmounted, computed } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { Delete, Plus, InfoFilled, Top, Bottom, Rank, Star, DocumentCopy } from '@element-plus/icons-vue';
+import { Delete, Plus, InfoFilled, Top, Bottom, Rank, Star, DocumentCopy, Share, Loading, CircleCheck, CircleClose } from '@element-plus/icons-vue';
 import draggable from 'vuedraggable';
 import { surveyAPI, type Survey, type Question, type QuestionOption } from '../api/survey';
 import { templateAPI } from '../api/template';
+import type { Template } from '../api/template';
 import SurveyPreview from '../components/SurveyPreview.vue';
 import TemplateSelector from '../components/TemplateSelector.vue';
-import type { Template } from '../api/template';
+import ShareDialog from '../components/ShareDialog.vue';
 
 const router = useRouter();
 const route = useRoute();
@@ -253,12 +283,22 @@ const publishing = ref(false);
 const savingAsTemplate = ref(false);
 const expandedQuestions = ref<Set<number>>(new Set());
 
+// 自动保存相关
+const autoSaveStatus = ref<'idle' | 'saving' | 'saved' | 'error'>('idle');
+const lastSaveTime = ref<Date | null>(null);
+let autoSaveTimer: ReturnType<typeof setInterval> | null = null;
+let lastSavedData: string = '';
+
 // 预览相关
 const showPreview = ref(false);
 const previewData = ref<Partial<Survey> | null>(null);
 
 // 保存为模板相关
 const showSaveTemplateDialog = ref(false);
+
+// 分享相关
+const shareDialogVisible = ref(false);
+
 const templateForm = reactive({
   title: '',
   description: '',
@@ -320,15 +360,114 @@ const survey = reactive<Partial<Survey>>({
   description: '',
   allowAnonymous: false,
   requireLogin: true,
+  deadline: undefined,
   questions: [],
 });
 
 let questionIdCounter = 0;
 let optionIdCounter = 0;
 
+const disabledDate = (time: Date) => {
+  // 禁止选择过去的日期
+  return time.getTime() < Date.now() - 8.64e7;
+};
+
 const goBack = () => {
   router.back();
 };
+
+// ============ 自动保存功能 ============
+const formatTime = (date: Date): string => {
+  const hours = date.getHours().toString().padStart(2, '0');
+  const minutes = date.getMinutes().toString().padStart(2, '0');
+  const seconds = date.getSeconds().toString().padStart(2, '0');
+  return `${hours}:${minutes}:${seconds}`;
+};
+
+const getSurveySnapshot = (): string => {
+  return JSON.stringify({
+    title: survey.title,
+    description: survey.description,
+    allowAnonymous: survey.allowAnonymous,
+    requireLogin: survey.requireLogin,
+    deadline: survey.deadline,
+    questions: survey.questions?.map(q => ({
+      title: (q as any).title,
+      type: (q as any).type,
+      isRequired: (q as any).isRequired,
+      orderIndex: (q as any).orderIndex,
+      options: (q as any).options,
+      batchText: (q as any).batchText,
+    })),
+  });
+};
+
+const hasContentChanged = (): boolean => {
+  const currentData = getSurveySnapshot();
+  return currentData !== lastSavedData;
+};
+
+const performAutoSave = async () => {
+  // 只在编辑模式下自动保存
+  if (!isEdit.value) return;
+  
+  // 检查是否有变更
+  if (!hasContentChanged()) return;
+  
+  // 检查标题是否为空
+  if (!survey.title?.trim()) return;
+
+  try {
+    autoSaveStatus.value = 'saving';
+    
+    const id = route.params.id as string;
+    await surveyAPI.updateSurvey(id, { ...survey, status: survey.status || 'draft' } as Survey);
+    
+    // 更新状态
+    autoSaveStatus.value = 'saved';
+    lastSaveTime.value = new Date();
+    lastSavedData = getSurveySnapshot();
+    
+  } catch (error: any) {
+    console.error('Auto save failed:', error);
+    autoSaveStatus.value = 'error';
+  }
+};
+
+const startAutoSave = () => {
+  if (autoSaveTimer) {
+    clearInterval(autoSaveTimer);
+  }
+  
+  // 初始化上次保存的数据
+  lastSavedData = getSurveySnapshot();
+  
+  // 启动30秒定时器
+  autoSaveTimer = setInterval(() => {
+    performAutoSave();
+  }, 30000);
+};
+
+const stopAutoSave = () => {
+  if (autoSaveTimer) {
+    clearInterval(autoSaveTimer);
+    autoSaveTimer = null;
+  }
+};
+
+const autoSaveStatusText = computed(() => {
+  switch (autoSaveStatus.value) {
+    case 'saving':
+      return '正在保存...';
+    case 'saved':
+      return lastSaveTime.value ? `已自动保存 于 ${formatTime(lastSaveTime.value)}` : '已自动保存';
+    case 'error':
+      return '自动保存失败';
+    default:
+      return '';
+  }
+});
+// ============ 自动保存功能结束 ============
 
 const getQuestionTypeText = (type: string) => {
   const texts: Record<string, string> = {
@@ -564,6 +703,10 @@ const saveDraft = async () => {
     if (isEdit.value) {
       const id = route.params.id as string;
       await surveyAPI.updateSurvey(id, { ...survey, status: 'draft' } as Survey);
+      // 更新自动保存状态
+      lastSavedData = getSurveySnapshot();
+      autoSaveStatus.value = 'saved';
+      lastSaveTime.value = new Date();
       ElMessage.success('保存成功');
     } else {
       await surveyAPI.createSurvey({ ...survey, status: 'draft' } as Survey);
@@ -615,6 +758,8 @@ const publishSurvey = async () => {
     if (isEdit.value) {
       const id = route.params.id as string;
       await surveyAPI.updateSurvey(id, { ...survey, status: 'published' } as Survey);
+      // 更新自动保存状态
+      lastSavedData = getSurveySnapshot();
       surveyId = id;
     } else {
       const response = await surveyAPI.createSurvey({ ...survey, status: 'published' } as Survey);
@@ -647,6 +792,11 @@ const saveAsTemplate = () => {
   templateForm.category = 'other';
 
   showSaveTemplateDialog.value = true;
+};
+
+const openShareDialog = () => {
+  if (!survey.id) return;
+  shareDialogVisible.value = true;
 };
 
 const confirmSaveTemplate = async () => {
@@ -709,6 +859,8 @@ const loadSurvey = async () => {
       survey.description = data.description;
       survey.allowAnonymous = data.allowAnonymous;
       survey.requireLogin = data.requireLogin;
+      survey.status = data.status;
+      survey.deadline = data.deadline;
       survey.questions = (data.questions || []).map((q: any) => ({
         ...q,
         inputMode: 'single',
@@ -719,6 +871,9 @@ const loadSurvey = async () => {
       survey.questions?.forEach((q: any) => {
         expandedQuestions.value.add(q.id);
       });
+      
+      // 启动自动保存
+      startAutoSave();
     } catch (error) {
       console.error('Failed to load survey:', error);
       ElMessage.error('加载问卷失败');
@@ -728,6 +883,10 @@ const loadSurvey = async () => {
 
 onMounted(() => {
   loadSurvey();
+});
+
+onUnmounted(() => {
+  stopAutoSave();
 });
 </script>
 
@@ -746,6 +905,49 @@ onMounted(() => {
   margin: 0;
 }
 
+.auto-save-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  margin-bottom: 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  transition: all 0.3s;
+}
+
+.auto-save-status.saving {
+  background: #ecf5ff;
+  color: #409eff;
+}
+
+.auto-save-status.saved {
+  background: #f0f9ff;
+  color: #67c23a;
+}
+
+.auto-save-status.error {
+  background: #fef0f0;
+  color: #f56c6c;
+}
+
+.auto-save-status .el-icon {
+  font-size: 14px;
+}
+
+.auto-save-status .is-loading {
+  animation: rotating 2s linear infinite;
+}
+
+@keyframes rotating {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
 .survey-form {
   padding: 0 20px;
 }
@@ -756,6 +958,15 @@ onMounted(() => {
 
 .info-card h3 {
   margin: 0;
+}
+
+.deadline-tip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  color: #909399;
+  font-size: 12px;
 }
 
 .card-header {

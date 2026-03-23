@@ -60,8 +60,12 @@ async function startServer() {
     await sequelize.authenticate();
     console.log('Database connection established successfully');
 
-    // Sync database models (create tables if they don't exist)
-    await sequelize.sync({ alter: false });
+    // Sync database models
+    // 在开发环境自动更新表结构，生产环境只创建不存在的表
+    const syncOptions = process.env.NODE_ENV === 'development' 
+      ? { alter: true } 
+      : { alter: false };
+    await sequelize.sync(syncOptions);
     console.log('Database models synchronized');
 
     // Seed system templates

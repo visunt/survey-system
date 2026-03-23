@@ -11,6 +11,7 @@ class Survey extends Model<SurveyAttributes> implements SurveyAttributes {
   public creatorId!: number;
   public startDate?: Date;
   public endDate?: Date;
+  public deadline?: Date;
   public allowAnonymous!: boolean;
   public requireLogin!: boolean;
   public limitByDevice!: boolean;
@@ -51,6 +52,10 @@ Survey.init(
       allowNull: true,
     },
     endDate: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    deadline: {
       type: DataTypes.DATE,
       allowNull: true,
     },

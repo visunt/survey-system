@@ -37,6 +37,7 @@ export interface Survey {
   creatorId?: number;
   startDate?: string;
   endDate?: string;
+  deadline?: string;
   allowAnonymous: boolean;
   requireLogin: boolean;
   limitByDevice?: boolean;
@@ -53,11 +54,26 @@ export interface SurveyResponse {
   survey?: Survey;
 }
 
+export interface SurveyListParams {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  status?: string;
+}
+
+export interface SurveyListResponse {
+  data: Survey[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
 export const surveyAPI = {
   getSurveys: (params?: { status?: string; creatorId?: number }) =>
     api.get('/surveys', { params }),
 
-  getMySurveys: () => api.get('/surveys/my/surveys'),
+  getMySurveys: (params?: SurveyListParams) =>
+    api.get<SurveyListResponse>('/surveys/my/surveys', { params }),
 
   getMyResponses: () => api.get('/surveys/my/responses'),
 
@@ -73,6 +89,8 @@ export const surveyAPI = {
 
   reorderQuestions: (surveyId: string, questionOrders: Array<{ id: number; orderIndex: number }>) =>
     api.patch(`/surveys/${surveyId}/questions/reorder`, { questionOrders }),
+
+  duplicateSurvey: (id: string) => api.post(`/surveys/${id}/duplicate`),
 };
 
 export default surveyAPI;

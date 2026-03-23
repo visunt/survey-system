@@ -7,12 +7,25 @@
     <el-tabs v-model="activeTab" class="survey-tabs">
       <el-tab-pane label="我创建的" name="created">
         <div class="tab-header">
-          <el-select v-model="statusFilter" placeholder="筛选状态" clearable class="status-filter">
-            <el-option label="全部" value="" />
-            <el-option label="已发布" value="published" />
-            <el-option label="草稿" value="draft" />
-            <el-option label="已关闭" value="closed" />
-          </el-select>
+          <div class="filter-group">
+            <el-input
+              v-model="searchKeyword"
+              placeholder="搜索问卷标题或描述"
+              clearable
+              class="search-input"
+              @input="handleSearch"
+            >
+              <template #prefix>
+                <el-icon><Search /></el-icon>
+              </template>
+            </el-input>
+            <el-select v-model="statusFilter" placeholder="筛选状态" clearable class="status-filter" @change="handleFilterChange">
+              <el-option label="全部" value="" />
+              <el-option label="已发布" value="published" />
+              <el-option label="草稿" value="draft" />
+              <el-option label="已关闭" value="closed" />
+            </el-select>
+          </div>
           <div class="action-buttons">
             <el-button @click="router.push('/templates')">
               <el-icon><Document /></el-icon>
@@ -30,7 +43,7 @@
         </el-empty>
 
         <div v-else class="survey-grid">
-          <el-card v-for="survey in filteredCreatedSurveys" :key="survey.id" class="survey-card" @click="viewSurvey(survey.id!)">
+          <el-card v-for="survey in createdSurveys" :key="survey.id" class="survey-card" @click="viewSurvey(survey.id!)">
             <div class="survey-header">
               <h3 class="survey-title">{{ survey.title }}</h3>
               <el-tag :type="getStatusType(survey.status)" size="small">{{ getStatusText(survey.status) }}</el-tag>
@@ -46,10 +59,23 @@
               <el-button v-if="survey.status === 'published'" type="primary" size="small" @click.stop="copyLink(survey.id!)">分享链接</el-button>
               <el-button v-if="survey.status === 'draft'" type="success" size="small" @click.stop="publishSurvey(survey.id!)">发布</el-button>
               <el-button size="small" @click.stop="editSurvey(survey.id!)">编辑</el-button>
+              <el-button size="small" @click.stop="duplicateSurvey(survey.id!)">复制</el-button>
               <el-button v-if="survey.status === 'published'" size="small" @click.stop="viewResults(survey.id!)">查看结果</el-button>
               <el-button type="danger" size="small" plain @click.stop="deleteSurvey(survey.id!)">删除</el-button>
             </div>
           </el-card>
+        </div>
+
+        <div v-if="total > 0" class="pagination-container">
+          <el-pagination
+            v-model:current-page="currentPage"
+            v-model:page-size="pageSize"
+            :page-sizes="[10, 20, 50]"
+            :total="total"
+            layout="total, sizes, prev, pager, next, jumper"
+            @size-change="handlePageSizeChange"
+            @current-change="handlePageChange"
+          />
         </div>
       </el-tab-pane>
 
@@ -84,7 +110,7 @@
 import { ref, computed, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { Plus, Clock, Document } from '@element-plus/icons-vue';
+import { Plus, Clock, Document, Search } from '@element-plus/icons-vue';
 import { surveyAPI, type Survey, type SurveyResponse } from '../api/survey';
 import { useAuthStore } from '../stores/auth';
 
@@ -96,11 +122,12 @@ const createdSurveys = ref<Survey[]>([]);
 const respondedSurveys = ref<SurveyResponse[]>([]);
 const loading = ref(false);
 const statusFilter = ref('');
+const searchKeyword = ref('');
+const currentPage = ref(1);
+const pageSize = ref(10);
+const total = ref(0);
 
-const filteredCreatedSurveys = computed(() => {
-  if (!statusFilter.value) return createdSurveys.value;
-  return createdSurveys.value.filter(s => s.status === statusFilter.value);
-});
+let searchTimeout: NodeJS.Timeout | null = null;
 
 const getStatusType = (status: string) => {
   const types: Record<string, any> = {
@@ -164,6 +191,16 @@ const publishSurvey = async (id: string) => {
   }
 };
 
+const duplicateSurvey = async (id: string) => {
+  try {
+    const response = await surveyAPI.duplicateSurvey(id);
+    ElMessage.success('复制成功');
+    router.push(`/edit-survey/${response.data.id}`);
+  } catch (error: any) {
+    ElMessage.error(error.response?.data?.error || '复制失败');
+  }
+};
+
 const deleteSurvey = async (id: string) => {
   try {
     await ElMessageBox.confirm('确定要删除这个问卷吗？删除后无法恢复。', '确认删除', {
@@ -184,14 +221,47 @@ const deleteSurvey = async (id: string) => {
 const loadCreatedSurveys = async () => {
   try {
     loading.value = true;
-    const response = await surveyAPI.getMySurveys();
-    createdSurveys.value = response.data;
+    const response = await surveyAPI.getMySurveys({
+      page: currentPage.value,
+      pageSize: pageSize.value,
+      search: searchKeyword.value || undefined,
+      status: statusFilter.value || undefined,
+    });
+    createdSurveys.value = response.data.data;
+    total.value = response.data.total;
   } catch (error) {
     console.error('Failed to load created surveys:', error);
     ElMessage.error('加载问卷失败');
   } finally {
     loading.value = false;
   }
+};
+
+const handleSearch = () => {
+  // 使用debounce，输入停止300ms后再搜索
+  if (searchTimeout) {
+    clearTimeout(searchTimeout);
+  }
+  searchTimeout = setTimeout(() => {
+    currentPage.value = 1; // 搜索时重置到第一页
+    loadCreatedSurveys();
+  }, 300);
+};
+
+const handleFilterChange = () => {
+  currentPage.value = 1; // 筛选条件改变时重置到第一页
+  loadCreatedSurveys();
+};
+
+const handlePageChange = () => {
+  loadCreatedSurveys();
+  // 滚动到顶部
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+};
+
+const handlePageSizeChange = () => {
+  currentPage.value = 1; // 每页条数改变时重置到第一页
+  loadCreatedSurveys();
 };
 
 const loadRespondedSurveys = async () => {
@@ -250,6 +320,20 @@ onMounted(() => {
   align-items: center;
   margin-bottom: 20px;
   gap: 12px;
+  flex-wrap: wrap;
+}
+
+.filter-group {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+}
+
+.search-input {
+  max-width: 300px;
+  flex: 1;
 }
 
 .status-filter {
@@ -337,6 +421,13 @@ onMounted(() => {
   min-width: 70px;
 }
 
+.pagination-container {
+  display: flex;
+  justify-content: center;
+  margin-top: 30px;
+  padding: 20px 0;
+}
+
 @media (max-width: 768px) {
   .survey-list {
     padding: 10px 0;
@@ -359,8 +450,29 @@ onMounted(() => {
     align-items: stretch;
   }
 
+  .filter-group {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .search-input {
+    max-width: 100%;
+  }
+
   .status-filter {
     width: 100%;
+  }
+
+  .action-buttons {
+    width: 100%;
+  }
+
+  .action-buttons .el-button {
+    flex: 1;
+  }
+
+  .pagination-container {
+    overflow-x: auto;
   }
 
   .survey-grid {

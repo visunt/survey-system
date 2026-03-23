@@ -12,16 +12,18 @@ export const responseAPI = {
   getSurveyResponses: (surveyId: string) =>
     api.get(`/surveys/${surveyId}/responses`),
 
-  getSurveyStatistics: (surveyId: string) =>
-    api.get(`/surveys/${surveyId}/statistics`),
+  getSurveyStatistics: (surveyId: string, params?: { startDate?: string; endDate?: string }) =>
+    api.get(`/surveys/${surveyId}/statistics`, { params }),
 
-  exportToExcel: (surveyId: string) =>
+  exportToExcel: (surveyId: string, params?: { startDate?: string; endDate?: string }) =>
     api.get(`/surveys/${surveyId}/export/excel`, {
+      params,
       responseType: 'blob',
     }),
 
-  exportToPdf: (surveyId: string) =>
+  exportToPdf: (surveyId: string, params?: { startDate?: string; endDate?: string }) =>
     api.get(`/surveys/${surveyId}/export/pdf`, {
+      params,
       responseType: 'blob',
     }),
 };

@@ -9,6 +9,7 @@ import {
   getMySurveys,
   getMyResponses,
   reorderQuestions,
+  duplicateSurvey,
 } from '../controllers/surveyController';
 import { authMiddleware, optionalAuth } from '../middleware/auth';
 
@@ -21,6 +22,7 @@ router.get('/:id', getSurveyById);
 router.get('/my/surveys', authMiddleware, getMySurveys);
 router.get('/my/responses', authMiddleware, getMyResponses);
 router.post('/', authMiddleware, createSurvey);
+router.post('/:id/duplicate', authMiddleware, duplicateSurvey);
 router.put('/:id', authMiddleware, updateSurvey);
 router.delete('/:id', authMiddleware, deleteSurvey);
 router.patch('/:id/publish', authMiddleware, publishSurvey);

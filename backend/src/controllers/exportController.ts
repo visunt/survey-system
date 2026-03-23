@@ -8,6 +8,7 @@ import { AuthRequest } from '../types';
 export const exportToExcel = async (req: AuthRequest, res: ExpressResponse) => {
   try {
     const { surveyId } = req.params;
+    const { startDate, endDate } = req.query;
     const userId = req.user!.id;
     const surveyIdStr = Array.isArray(surveyId) ? surveyId[0] : surveyId;
 
@@ -29,8 +30,23 @@ export const exportToExcel = async (req: AuthRequest, res: ExpressResponse) => {
       order: [['orderIndex', 'ASC']],
     });
 
+    // 构建时间筛选条件
+    const responseWhere: any = { surveyId: surveyIdStr };
+    if (startDate || endDate) {
+      const { Op } = await import('sequelize');
+      responseWhere.submittedAt = {};
+      if (startDate) {
+        responseWhere.submittedAt[Op.gte] = new Date(startDate as string);
+      }
+      if (endDate) {
+        const endDateTime = new Date(endDate as string);
+        endDateTime.setHours(23, 59, 59, 999);
+        responseWhere.submittedAt[Op.lte] = endDateTime;
+      }
+    }
+
     const responses = await SurveyResponse.findAll({
-      where: { surveyId: surveyIdStr },
+      where: responseWhere,
       include: [
         {
           model: Answer,
@@ -204,6 +220,7 @@ export const exportToExcel = async (req: AuthRequest, res: ExpressResponse) => {
 export const exportToPdf = async (req: AuthRequest, res: ExpressResponse) => {
   try {
     const { surveyId } = req.params;
+    const { startDate, endDate } = req.query;
     const userId = req.user!.id;
     const surveyIdStr = Array.isArray(surveyId) ? surveyId[0] : surveyId;
 
@@ -231,7 +248,22 @@ export const exportToPdf = async (req: AuthRequest, res: ExpressResponse) => {
       order: [['orderIndex', 'ASC']],
     });
 
-    const totalResponses = await SurveyResponse.count({ where: { surveyId: surveyIdStr } });
+    // 构建时间筛选条件
+    const responseWhere: any = { surveyId: surveyIdStr };
+    if (startDate || endDate) {
+      const { Op } = await import('sequelize');
+      responseWhere.submittedAt = {};
+      if (startDate) {
+        responseWhere.submittedAt[Op.gte] = new Date(startDate as string);
+      }
+      if (endDate) {
+        const endDateTime = new Date(endDate as string);
+        endDateTime.setHours(23, 59, 59, 999);
+        responseWhere.submittedAt[Op.lte] = endDateTime;
+      }
+    }
+
+    const totalResponses = await SurveyResponse.count({ where: responseWhere });
 
     // 创建 PDF
     const doc = new PDFDocument({
