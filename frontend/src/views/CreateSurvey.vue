@@ -210,12 +210,16 @@
                           <el-radio-button value="rating">评分题</el-radio-button>
                           <el-radio-button value="date">日期题</el-radio-button>
                           <el-radio-button value="switch">开关题</el-radio-button>
+                          <el-radio-button value="nps">NPS评分</el-radio-button>
+                          <el-radio-button value="ranking">排序题</el-radio-button>
+                          <el-radio-button value="matrix">矩阵题</el-radio-button>
+                          <el-radio-button value="signature">签名题</el-radio-button>
                         </el-radio-group>
                       </div>
                     </div>
 
                     <!-- 选项配置 -->
-                    <div v-if="['single_choice', 'multiple_choice', 'dropdown_single', 'dropdown_multiple'].includes(question.type)" class="options-config">
+                    <div v-if="['single_choice', 'multiple_choice', 'dropdown_single', 'dropdown_multiple', 'ranking'].includes(question.type)" class="options-config">
                       <el-divider content-position="left">选项设置</el-divider>
 
                       <div class="options-header">
@@ -1113,7 +1117,7 @@ const addQuestion = () => {
 };
 
 const onQuestionTypeChange = (question: any) => {
-  const needsOptions = ['single_choice', 'multiple_choice', 'dropdown_single', 'dropdown_multiple'].includes(question.type);
+  const needsOptions = ['single_choice', 'multiple_choice', 'dropdown_single', 'dropdown_multiple', 'ranking'].includes(question.type);
   if (needsOptions && !question.options) {
     question.options = [];
     question.batchText = '';
@@ -1280,7 +1284,7 @@ const openPreview = () => {
 
   // 解析所有题目的批量输入选项
   previewSurvey.questions = previewSurvey.questions.map((q: any) => {
-    const needsOptions = ['single_choice', 'multiple_choice', 'dropdown_single', 'dropdown_multiple'].includes(q.type);
+    const needsOptions = ['single_choice', 'multiple_choice', 'dropdown_single', 'dropdown_multiple', 'ranking'].includes(q.type);
     
     if (needsOptions && q.inputMode === 'batch' && q.batchText) {
       // 解析批量输入

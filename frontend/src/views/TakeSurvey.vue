@@ -183,6 +183,82 @@
           <el-icon><WarningFilled /></el-icon>
           <span>{{ validationErrors[question.id!] }}</span>
         </div>
+
+        <!-- NPS评分 -->
+        <div v-else-if="question.type === 'nps'" class="nps-container">
+          <div class="nps-scale">
+            <el-radio-group v-model="answers[question.id!]" @change="handleAnswerChange(question)">
+              <el-radio-button v-for="n in 11" :key="n-1" :value="n-1" :class="getNpsClass(n-1)">
+                {{ n-1 }}
+              </el-radio-button>
+            </el-radio-group>
+          </div>
+          <div class="nps-labels">
+            <span class="nps-label detractor">0-6 贬损者</span>
+            <span class="nps-label passive">7-8 被动者</span>
+            <span class="nps-label promoter">9-10 推荐者</span>
+          </div>
+        </div>
+
+        <!-- 排序题 -->
+        <div v-else-if="question.type === 'ranking'" class="ranking-container">
+          <draggable
+            v-model="rankingAnswers[question.id!]"
+            item-key="id"
+            class="ranking-list"
+            @change="handleAnswerChange(question)"
+          >
+            <template #item="{ element, index }">
+              <div class="ranking-item">
+                <span class="ranking-number">{{ index + 1 }}</span>
+                <span class="ranking-text">{{ element.text }}</span>
+                <el-icon class="ranking-drag"><Rank /></el-icon>
+              </div>
+            </template>
+          </draggable>
+        </div>
+
+        <!-- 矩阵题 -->
+        <div v-else-if="question.type === 'matrix'" class="matrix-container">
+          <table class="matrix-table">
+            <thead>
+              <tr>
+                <th></th>
+                <th v-for="col in getMatrixColumns(question)" :key="col">{{ col }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="row in getMatrixRows(question)" :key="row.id">
+                <td class="matrix-row-label">{{ row.text }}</td>
+                <td v-for="col in getMatrixColumns(question)" :key="col" class="matrix-cell">
+                  <el-radio
+                    :value="col"
+                    :model-value="matrixAnswers[question.id!]?.[row.id]"
+                    @change="(val: string) => setMatrixAnswer(question.id!, row.id, val)"
+                  />
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- 签名题 -->
+        <div v-else-if="question.type === 'signature'" class="signature-container">
+          <canvas
+            :ref="(el: any) => setCanvasRef(question.id!, el)"
+            class="signature-canvas"
+            @mousedown="startDrawing(question.id!, $event)"
+            @mousemove="draw(question.id!, $event)"
+            @mouseup="stopDrawing(question.id!)"
+            @mouseleave="stopDrawing(question.id!)"
+            @touchstart="startDrawingTouch(question.id!, $event)"
+            @touchmove="drawTouch(question.id!, $event)"
+            @touchend="stopDrawing(question.id!)"
+          ></canvas>
+          <div class="signature-actions">
+            <el-button size="small" @click="clearSignature(question.id!)">清除签名</el-button>
+          </div>
+        </div>
       </el-card>
 
       <div class="submit-section">
@@ -217,6 +293,11 @@ const limitCheck = ref<ResponseLimitCheck | null>(null);
 
 const answers = ref<Record<number, string | boolean>>({});
 const multiAnswers = ref<Record<number, string[]>>({});
+const rankingAnswers = ref<Record<number, { id: number; text: string }[]>>({});
+const matrixAnswers = ref<Record<number, Record<number, string>>>({});
+const signatureData = ref<Record<number, string>>({});
+const canvasRefs = ref<Record<number, HTMLCanvasElement | null>>({});
+const isDrawing = ref<Record<number, boolean>>({});
 const deviceId = ref<string>('');
 const validationErrors = ref<Record<number, string>>({});
 
@@ -477,6 +558,127 @@ const handleAnswerChange = (question: Question) => {
   clearHiddenQuestionAnswers();
 };
 
+// NPS 相关
+const getNpsClass = (value: number): string => {
+  if (value <= 6) return 'nps-detractor';
+  if (value <= 8) return 'nps-passive';
+  return 'nps-promoter';
+};
+
+// 矩阵题相关
+const getMatrixRows = (question: Question) => {
+  return question.options?.filter(o => o.orderIndex >= 100) || [];
+};
+
+const getMatrixColumns = (question: Question): string[] => {
+  const colOption = question.options?.find(o => o.orderIndex < 100);
+  if (colOption?.text) {
+    return colOption.text.split('|');
+  }
+  return ['非常不满意', '不满意', '一般', '满意', '非常满意'];
+};
+
+const setMatrixAnswer = (questionId: number, rowId: number, value: string) => {
+  if (!matrixAnswers.value[questionId]) {
+    matrixAnswers.value[questionId] = {};
+  }
+  matrixAnswers.value[questionId][rowId] = value;
+};
+
+// 排序题相关
+import draggable from 'vuedraggable';
+import { Rank } from '@element-plus/icons-vue';
+
+// 签名相关
+const setCanvasRef = (questionId: number, el: any) => {
+  if (el) {
+    canvasRefs.value[questionId] = el;
+    initCanvas(questionId);
+  }
+};
+
+const initCanvas = (questionId: number) => {
+  const canvas = canvasRefs.value[questionId];
+  if (!canvas) return;
+  
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+  
+  canvas.width = canvas.offsetWidth;
+  canvas.height = 200;
+  
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.strokeStyle = '#333';
+  ctx.lineWidth = 2;
+  ctx.lineCap = 'round';
+};
+
+const getPos = (canvas: HTMLCanvasElement, e: MouseEvent | TouchEvent): { x: number; y: number } => {
+  const rect = canvas.getBoundingClientRect();
+  if ('touches' in e) {
+    return {
+      x: e.touches[0].clientX - rect.left,
+      y: e.touches[0].clientY - rect.top
+    };
+  }
+  return {
+    x: e.clientX - rect.left,
+    y: e.clientY - rect.top
+  };
+};
+
+const startDrawing = (questionId: number, e: MouseEvent) => {
+  isDrawing.value[questionId] = true;
+  const canvas = canvasRefs.value[questionId];
+  if (!canvas) return;
+  
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+  
+  const pos = getPos(canvas, e);
+  ctx.beginPath();
+  ctx.moveTo(pos.x, pos.y);
+};
+
+const startDrawingTouch = (questionId: number, e: TouchEvent) => {
+  e.preventDefault();
+  startDrawing(questionId, e as any);
+};
+
+const draw = (questionId: number, e: MouseEvent) => {
+  if (!isDrawing.value[questionId]) return;
+  
+  const canvas = canvasRefs.value[questionId];
+  if (!canvas) return;
+  
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+  
+  const pos = getPos(canvas, e);
+  ctx.lineTo(pos.x, pos.y);
+  ctx.stroke();
+  
+  // 保存签名数据
+  signatureData.value[questionId] = canvas.toDataURL('image/png');
+  answers.value[questionId] = signatureData.value[questionId];
+};
+
+const drawTouch = (questionId: number, e: TouchEvent) => {
+  e.preventDefault();
+  draw(questionId, e as any);
+};
+
+const stopDrawing = (questionId: number) => {
+  isDrawing.value[questionId] = false;
+};
+
+const clearSignature = (questionId: number) => {
+  initCanvas(questionId);
+  delete signatureData.value[questionId];
+  delete answers.value[questionId];
+};
+
 // 验证单个题目
 const validateQuestion = (question: Question) => {
   // 如果题目被隐藏，跳过验证
@@ -566,11 +768,24 @@ const handleSubmit = async () => {
       answer = JSON.stringify(selected);
     } else if (question.type === 'switch') {
       answer = answers.value[question.id!] ? 'true' : 'false';
+    } else if (question.type === 'ranking') {
+      // 排序题：保存排序后的选项 ID 列表
+      const ranking = rankingAnswers.value[question.id!] || [];
+      answer = JSON.stringify(ranking.map(r => r.id));
+    } else if (question.type === 'matrix') {
+      // 矩阵题：保存每行的选择
+      answer = JSON.stringify(matrixAnswers.value[question.id!] || {});
+    } else if (question.type === 'nps') {
+      // NPS：直接保存分数
+      answer = String(answers.value[question.id!] || '');
+    } else if (question.type === 'signature') {
+      // 签名：保存 Base64 图片数据
+      answer = signatureData.value[question.id!] || '';
     } else {
       answer = String(answers.value[question.id!] || '');
     }
 
-    if (answer && answer !== '[]' && answer !== '') {
+    if (answer && answer !== '[]' && answer !== '' && answer !== '{}') {
       submissionAnswers.push({
         questionId: question.id!,
         answer,
@@ -595,6 +810,15 @@ const loadSurvey = async () => {
     const id = route.params.id as string;
     const response = await surveyAPI.getSurveyById(id);
     survey.value = response.data;
+
+    // 初始化排序题答案
+    survey.value.questions?.forEach(q => {
+      if (q.type === 'ranking' && q.options) {
+        rankingAnswers.value[q.id!] = q.options
+          .sort((a, b) => a.orderIndex - b.orderIndex)
+          .map(o => ({ id: o.id!, text: o.text }));
+      }
+    });
 
     if (survey.value.requireLogin && !authStore.isAuthenticated) {
       ElMessage.warning('该问卷需要登录后填写');
@@ -774,6 +998,188 @@ onMounted(() => {
 .validation-error .el-icon {
   font-size: 14px;
   flex-shrink: 0;
+}
+
+/* NPS 样式 */
+.nps-container {
+  width: 100%;
+}
+
+.nps-scale {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+
+.nps-scale :deep(.el-radio-group) {
+  display: flex;
+  gap: 4px;
+}
+
+.nps-scale :deep(.el-radio-button__inner) {
+  padding: 8px 12px;
+}
+
+.nps-scale :deep(.nps-detractor .el-radio-button__inner) {
+  background: #fef0f0;
+  border-color: #fbc4c4;
+  color: #f56c6c;
+}
+
+.nps-scale :deep(.nps-detractor.is-active .el-radio-button__inner) {
+  background: #f56c6c;
+  border-color: #f56c6c;
+  color: #fff;
+}
+
+.nps-scale :deep(.nps-passive .el-radio-button__inner) {
+  background: #fdf6ec;
+  border-color: #f5dab1;
+  color: #e6a23c;
+}
+
+.nps-scale :deep(.nps-passive.is-active .el-radio-button__inner) {
+  background: #e6a23c;
+  border-color: #e6a23c;
+  color: #fff;
+}
+
+.nps-scale :deep(.nps-promoter .el-radio-button__inner) {
+  background: #f0f9eb;
+  border-color: #c2e7b0;
+  color: #67c23a;
+}
+
+.nps-scale :deep(.nps-promoter.is-active .el-radio-button__inner) {
+  background: #67c23a;
+  border-color: #67c23a;
+  color: #fff;
+}
+
+.nps-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #909399;
+}
+
+.nps-label {
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.nps-label.detractor {
+  background: #fef0f0;
+  color: #f56c6c;
+}
+
+.nps-label.passive {
+  background: #fdf6ec;
+  color: #e6a23c;
+}
+
+.nps-label.promoter {
+  background: #f0f9eb;
+  color: #67c23a;
+}
+
+/* 排序题样式 */
+.ranking-container {
+  width: 100%;
+}
+
+.ranking-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ranking-item {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  background: #f5f7fa;
+  border-radius: 8px;
+  cursor: move;
+  transition: all 0.2s;
+}
+
+.ranking-item:hover {
+  background: #e6e8eb;
+}
+
+.ranking-number {
+  width: 24px;
+  height: 24px;
+  background: #409eff;
+  color: #fff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+  margin-right: 12px;
+}
+
+.ranking-text {
+  flex: 1;
+}
+
+.ranking-drag {
+  color: #909399;
+}
+
+/* 矩阵题样式 */
+.matrix-container {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.matrix-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.matrix-table th,
+.matrix-table td {
+  padding: 12px;
+  text-align: center;
+  border: 1px solid #ebeef5;
+}
+
+.matrix-table th {
+  background: #f5f7fa;
+  font-weight: 600;
+}
+
+.matrix-row-label {
+  text-align: left;
+  font-weight: 500;
+}
+
+.matrix-cell :deep(.el-radio) {
+  margin-right: 0;
+}
+
+/* 签名题样式 */
+.signature-container {
+  width: 100%;
+}
+
+.signature-canvas {
+  width: 100%;
+  height: 200px;
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+  background: #fff;
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.signature-actions {
+  margin-top: 8px;
+  text-align: right;
 }
 
 @media (max-width: 768px) {

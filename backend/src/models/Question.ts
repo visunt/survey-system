@@ -9,7 +9,7 @@ class Question extends Model<QuestionAttributes> implements QuestionAttributes {
   public id!: number;
   public surveyId!: string;
   public title!: string;
-  public type!: 'single_choice' | 'multiple_choice' | 'text' | 'textarea' | 'rating' | 'date' | 'dropdown_single' | 'dropdown_multiple' | 'switch';
+  public type!: 'single_choice' | 'multiple_choice' | 'text' | 'textarea' | 'rating' | 'date' | 'dropdown_single' | 'dropdown_multiple' | 'switch' | 'nps' | 'ranking' | 'matrix' | 'signature';
   public isRequired!: boolean;
   public orderIndex!: number;
   public skipLogic?: SkipLogic;

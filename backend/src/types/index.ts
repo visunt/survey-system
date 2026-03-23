@@ -34,7 +34,7 @@ export interface QuestionAttributes {
   id?: number;
   surveyId: string;
   title: string;
-  type: 'single_choice' | 'multiple_choice' | 'text' | 'textarea' | 'rating' | 'date' | 'dropdown_single' | 'dropdown_multiple' | 'switch';
+  type: 'single_choice' | 'multiple_choice' | 'text' | 'textarea' | 'rating' | 'date' | 'dropdown_single' | 'dropdown_multiple' | 'switch' | 'nps' | 'ranking' | 'matrix' | 'signature';
   isRequired: boolean;
   orderIndex: number;
   skipLogic?: SkipLogic;
