@@ -150,12 +150,73 @@
           </div>
         </el-card>
       </div>
+
+      <!-- 交叉分析区块 -->
+      <el-card class="cross-analysis-card">
+        <template #header>
+          <h3>交叉分析</h3>
+        </template>
+        
+        <div class="cross-analysis-controls">
+          <el-row :gutter="20">
+            <el-col :span="12">
+              <el-form-item label="行题目（X轴）">
+                <el-select v-model="crossQuestionX" placeholder="选择题目" style="width: 100%">
+                  <el-option
+                    v-for="stat in singleChoiceQuestions"
+                    :key="stat.id"
+                    :label="stat.title"
+                    :value="stat.id"
+                  />
+                </el-select>
+              </el-form-item>
+            </el-col>
+            <el-col :span="12">
+              <el-form-item label="列题目（Y轴）">
+                <el-select v-model="crossQuestionY" placeholder="选择题目" style="width: 100%">
+                  <el-option
+                    v-for="stat in singleChoiceQuestions"
+                    :key="stat.id"
+                    :label="stat.title"
+                    :value="stat.id"
+                  />
+                </el-select>
+              </el-form-item>
+            </el-col>
+          </el-row>
+          <el-button type="primary" @click="loadCrossAnalysis" :loading="crossLoading">
+            开始分析
+          </el-button>
+        </div>
+
+        <div v-if="crossData" class="cross-analysis-result">
+          <!-- 交叉表格 -->
+          <el-table :data="crossTableData" border style="width: 100%; margin-top: 20px">
+            <el-table-column prop="rowLabel" label="" width="150" fixed />
+            <el-table-column
+              v-for="col in crossData.yOptions"
+              :key="col"
+              :prop="col"
+              :label="col"
+            >
+              <template #default="{ row }">
+                <div v-if="row[col]">
+                  {{ row[col].count }} ({{ row[col].percentage }}%)
+                </div>
+              </template>
+            </el-table-column>
+          </el-table>
+
+          <!-- 分组柱状图 -->
+          <div id="cross-chart" style="width: 100%; height: 400px; margin-top: 20px"></div>
+        </div>
+      </el-card>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, nextTick, watch } from 'vue';
+import { ref, onMounted, nextTick, watch, computed } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import { Download, Calendar, PieChart, DataLine, BarChart } from '@element-plus/icons-vue';
@@ -176,6 +237,117 @@ const loading = ref(true);
 const dateRange = ref<[string, string] | null>(null);
 const chartInstances = ref<Record<number, echarts.ECharts>>({});
 const chartTypes = ref<Record<number, 'pie' | 'bar'>>({});
+
+// 交叉分析状态
+const crossQuestionX = ref<number | null>(null);
+const crossQuestionY = ref<number | null>(null);
+const crossData = ref<any>(null);
+const crossLoading = ref(false);
+const crossChartInstance = ref<echarts.ECharts | null>(null);
+
+// 获取单选题列表（用于交叉分析）
+const singleChoiceQuestions = computed(() => {
+  return statistics.value.statistics.filter((s: any) => 
+    ['single_choice', 'dropdown_single', 'rating', 'nps'].includes(s.type)
+  );
+});
+
+// 交叉表格数据
+const crossTableData = computed(() => {
+  if (!crossData.value) return [];
+  
+  const rows: any[] = [];
+  crossData.value.xOptions.forEach((xOpt: string) => {
+    const row: any = { rowLabel: xOpt };
+    crossData.value.yOptions.forEach((yOpt: string) => {
+      if (crossData.value.tableData[xOpt] && crossData.value.tableData[xOpt][yOpt]) {
+        row[yOpt] = crossData.value.tableData[xOpt][yOpt];
+      }
+    });
+    rows.push(row);
+  });
+  return rows;
+});
+
+// 加载交叉分析数据
+const loadCrossAnalysis = async () => {
+  if (!crossQuestionX.value || !crossQuestionY.value) {
+    ElMessage.warning('请选择两个题目');
+    return;
+  }
+
+  if (crossQuestionX.value === crossQuestionY.value) {
+    ElMessage.warning('请选择不同的题目');
+    return;
+  }
+
+  crossLoading.value = true;
+  try {
+    const surveyId = route.params.id as string;
+    const res = await responseAPI.getCrossAnalysis(surveyId, {
+      questionX: crossQuestionX.value,
+      questionY: crossQuestionY.value,
+    });
+    crossData.value = res.data;
+
+    // 初始化交叉分析图表
+    nextTick(() => {
+      initCrossChart();
+    });
+  } catch (error: any) {
+    ElMessage.error(error.response?.data?.error || '加载交叉分析失败');
+  } finally {
+    crossLoading.value = false;
+  }
+};
+
+// 初始化交叉分析图表
+const initCrossChart = () => {
+  if (!crossData.value) return;
+
+  const container = document.getElementById('cross-chart');
+  if (!container) return;
+
+  if (crossChartInstance.value) {
+    crossChartInstance.value.dispose();
+  }
+
+  crossChartInstance.value = echarts.init(container);
+
+  const series = crossData.value.yOptions.map((yOpt: string, idx: number) => ({
+    name: yOpt,
+    type: 'bar',
+    data: crossData.value.xOptions.map((xOpt: string) => 
+      crossData.value.tableData[xOpt]?.[yOpt]?.count || 0
+    ),
+  }));
+
+  crossChartInstance.value.setOption({
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: { type: 'shadow' }
+    },
+    legend: {
+      data: crossData.value.yOptions
+    },
+    grid: {
+      left: '3%',
+      right: '4%',
+      bottom: '3%',
+      containLabel: true
+    },
+    xAxis: {
+      type: 'category',
+      data: crossData.value.xOptions
+    },
+    yAxis: {
+      type: 'value'
+    },
+    series
+  });
+
+  window.addEventListener('resize', () => crossChartInstance.value?.resize());
+};
 
 // 日期快捷选项
 const dateShortcuts = [

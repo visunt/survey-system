@@ -308,3 +308,85 @@ export const getSurveyStatistics = async (req: AuthRequest, res: Response) => {
     res.status(500).json({ error: 'Server error', details: (error as Error).message });
   }
 };
+
+// 交叉分析
+export const getCrossAnalysis = async (req: AuthRequest, res: Response) => {
+  try {
+    const { surveyId } = req.params;
+    const { questionX, questionY } = req.query;
+    const userId = req.user!.id;
+    const surveyIdStr = Array.isArray(surveyId) ? surveyId[0] : surveyId;
+
+    const survey = await Survey.findByPk(surveyIdStr);
+    if (!survey) {
+      return res.status(404).json({ error: 'Survey not found' });
+    }
+
+    if (survey.creatorId !== userId) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    // 获取交叉数据 - 使用原生SQL
+    const { sequelize } = await import('../config/database');
+    const { QueryTypes } = await import('sequelize');
+    
+    const crossData = await sequelize.query(
+      `SELECT a1.answer as x_value, a2.answer as y_value, COUNT(*) as count
+       FROM answers a1
+       JOIN answers a2 ON a1.responseId = a2.responseId
+       JOIN responses r ON a1.responseId = r.id
+       WHERE r.surveyId = ? AND a1.questionId = ? AND a2.questionId = ?
+       GROUP BY a1.answer, a2.answer`,
+      { 
+        type: QueryTypes.SELECT, 
+        replacements: [surveyIdStr, questionX, questionY] 
+      }
+    );
+
+    // 获取两个题目的选项
+    const [qX, qY] = await Promise.all([
+      Question.findByPk(Number(questionX), { include: [{ model: QuestionOption, as: 'options' }] }),
+      Question.findByPk(Number(questionY), { include: [{ model: QuestionOption, as: 'options' }] }),
+    ]);
+
+    const xOptions = qX?.options?.map((o: any) => o.text) || [];
+    const yOptions = qY?.options?.map((o: any) => o.text) || [];
+
+    // 构建交叉表格
+    const tableData: Record<string, Record<string, { count: number; percentage: number }>> = {};
+    xOptions.forEach((x: string) => {
+      tableData[x] = {};
+      yOptions.forEach((y: string) => {
+        tableData[x][y] = { count: 0, percentage: 0 };
+      });
+    });
+
+    // 填充数据
+    (crossData as any[]).forEach((row: any) => {
+      if (tableData[row.x_value] && tableData[row.x_value][row.y_value] !== undefined) {
+        tableData[row.x_value][row.y_value].count = parseInt(row.count);
+      }
+    });
+
+    // 计算行百分比
+    Object.keys(tableData).forEach((x) => {
+      const rowTotal = Object.values(tableData[x]).reduce((sum, cell) => sum + cell.count, 0);
+      Object.keys(tableData[x]).forEach((y) => {
+        tableData[x][y].percentage = rowTotal > 0 
+          ? Math.round((tableData[x][y].count / rowTotal) * 100 * 10) / 10 
+          : 0;
+      });
+    });
+
+    res.json({
+      surveyId,
+      questionX: { id: qX?.id, title: qX?.title, type: qX?.type },
+      questionY: { id: qY?.id, title: qY?.title, type: qY?.type },
+      xOptions,
+      yOptions,
+      tableData,
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Server error', details: (error as Error).message });
+  }
+};

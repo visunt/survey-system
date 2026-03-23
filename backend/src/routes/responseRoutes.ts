@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { submitResponse, getSurveyResponses, getSurveyStatistics, checkResponseLimit } from '../controllers/responseController';
+import { submitResponse, getSurveyResponses, getSurveyStatistics, checkResponseLimit, getCrossAnalysis } from '../controllers/responseController';
 import { authMiddleware, optionalAuth } from '../middleware/auth';
 
 const router = Router();
@@ -13,5 +13,8 @@ router.post('/surveys/:surveyId/responses', optionalAuth, submitResponse);
 // Get responses and statistics (protected)
 router.get('/surveys/:surveyId/responses', authMiddleware, getSurveyResponses);
 router.get('/surveys/:surveyId/statistics', authMiddleware, getSurveyStatistics);
+
+// Cross analysis (protected)
+router.get('/surveys/:surveyId/cross-analysis', authMiddleware, getCrossAnalysis);
 
 export default router;

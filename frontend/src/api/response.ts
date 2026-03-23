@@ -14,6 +14,20 @@ export interface ResponseLimitCheck {
   maxResponsesPerUser: number;
 }
 
+export interface CrossAnalysisParams {
+  questionX: number;
+  questionY: number;
+}
+
+export interface CrossAnalysisResponse {
+  surveyId: string;
+  questionX: { id: number; title: string; type: string };
+  questionY: { id: number; title: string; type: string };
+  xOptions: string[];
+  yOptions: string[];
+  tableData: Record<string, Record<string, { count: number; percentage: number }>>;
+}
+
 export const responseAPI = {
   submitResponse: (surveyId: string, answers: Answer[], deviceId?: string) =>
     api.post(`/surveys/${surveyId}/responses`, { answers, deviceId }),
@@ -38,4 +52,7 @@ export const responseAPI = {
       params,
       responseType: 'blob',
     }),
+
+  getCrossAnalysis: (surveyId: string, params: CrossAnalysisParams) =>
+    api.get<CrossAnalysisResponse>(`/surveys/${surveyId}/cross-analysis`, { params }),
 };
